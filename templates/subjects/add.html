@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Add Subject - Ghana Smart Study Planner{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Add New Subject</h1>
+        <div>
+            <a href="{{ url_for('subjects.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Subjects
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Subject Details</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('subjects.add') }}">
+                <div class="mb-3">
+                    <label for="name" class="form-label">Subject Name *</label>
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="priority" class="form-label">Priority (1-5) *</label>
+                        <select class="form-select" id="priority" name="priority" required>
+                            <option value="5">5 - Highest</option>
+                            <option value="4">4 - High</option>
+                            <option value="3" selected>3 - Medium</option>
+                            <option value="2">2 - Low</option>
+                            <option value="1">1 - Lowest</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="workload" class="form-label">Weekly Workload (hours) *</label>
+                        <input type="number" class="form-control" id="workload" name="workload" min="1" value="5" required>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="difficulty" class="form-label">Difficulty (1-5) *</label>
+                        <select class="form-select" id="difficulty" name="difficulty" required>
+                            <option value="5">5 - Very Hard</option>
+                            <option value="4">4 - Hard</option>
+                            <option value="3" selected>3 - Medium</option>
+                            <option value="2">2 - Easy</option>
+                            <option value="1">1 - Very Easy</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="exam_date" class="form-label">Exam Date (if applicable)</label>
+                    <input type="date" class="form-control" id="exam_date" name="exam_date">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="color" class="form-label">Color</label>
+                    <input type="color" class="form-control form-control-color" id="color" name="color" value="#3498db">
+                    <small class="text-muted">Choose a color to identify this subject</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Additional information about this subject..."></textarea>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Add Subject
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

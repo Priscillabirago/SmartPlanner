@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}My Subjects - Ghana Smart Study Planner{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0"><i class="fas fa-book me-2"></i>My Subjects</h1>
+        <div>
+            <a href="{{ url_for('subjects.add') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Add New Subject
+            </a>
+        </div>
+    </div>
+
+    {% if not subjects %}
+    <div class="alert alert-info">
+        <h4 class="alert-heading">No subjects yet!</h4>
+        <p>You don't have any subjects added to your study planner. Start by adding your first subject.</p>
+        <hr>
+        <a href="{{ url_for('subjects.add') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Add Your First Subject
+        </a>
+    </div>
+    {% else %}
+    <div class="row">
+        {% for subject in subjects %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header" style="background-color: {{ subject.color or '#3498db' }}; color: white;">
+                    <h5 class="card-title mb-0">{{ subject.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Priority:</strong>
+                        <div>
+                            {% for i in range(subject.priority) %}
+                            <i class="fas fa-star text-warning"></i>
+                            {% endfor %}
+                            {% for i in range(5 - subject.priority) %}
+                            <i class="far fa-star text-muted"></i>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Workload:</strong> {{ subject.workload }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Difficulty:</strong> {{ subject.difficulty }}
+                    </div>
+                    
+                    {% if subject.exam_date %}
+                    <div class="mb-3">
+                        <strong>Exam Date:</strong> {{ subject.exam_date.strftime('%d %B, %Y') }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if subject.description %}
+                    <div class="mb-3">
+                        <strong>Notes:</strong>
+                        <p class="mb-0">{{ subject.description }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-3">
+                        <a href="{{ url_for('subjects.tasks', subject_id=subject.id) }}" class="btn btn-sm btn-outline-primary me-2">
+                            <i class="fas fa-eye me-1"></i>View Tasks
+                        </a>
+                        <a href="{{ url_for('subjects.edit', subject_id=subject.id) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

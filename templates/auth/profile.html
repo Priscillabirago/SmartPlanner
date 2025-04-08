@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - Ghana Smart Study Planner{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="fas fa-user-circle me-2"></i>My Profile</h2>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="card-title mb-0">Personal Information</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('auth.profile') }}">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" value="{{ user.username }}" readonly disabled>
+                            <small class="text-muted">Username cannot be changed</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" value="{{ user.email }}" readonly disabled>
+                            <small class="text-muted">Email cannot be changed</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ user.name or '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="school" class="form-label">School/Institution</label>
+                            <input type="text" class="form-control" id="school" name="school" value="{{ user.school or '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="grade_level" class="form-label">Grade Level/Year</label>
+                            <input type="text" class="form-control" id="grade_level" name="grade_level" value="{{ user.grade_level or '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="study_hours_per_week" class="form-label">Study Hours Per Week</label>
+                            <input type="number" class="form-control" id="study_hours_per_week" name="study_hours_per_week" value="{{ user.study_hours_per_week or 10 }}" min="1" max="100">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="academic_goals" class="form-label">Academic Goals</label>
+                            <textarea class="form-control" id="academic_goals" name="academic_goals" rows="3" placeholder="What are your academic goals this term?">{{ user.academic_goals or '' }}</textarea>
+                        </div>
+                        
+                        <h5 class="mt-4 mb-3">Study Preferences</h5>
+                        
+                        <div class="mb-3">
+                            <label for="max_consecutive_hours" class="form-label">Maximum Consecutive Study Hours</label>
+                            <input type="number" class="form-control" id="max_consecutive_hours" name="max_consecutive_hours" value="{{ preferences.max_consecutive_hours or 2 }}" min="1" max="8">
+                            <small class="text-muted">Maximum number of hours you can study without a long break</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="break_duration" class="form-label">Break Duration (minutes)</label>
+                            <input type="number" class="form-control" id="break_duration" name="break_duration" value="{{ preferences.break_duration or 15 }}" min="5" max="60">
+                            <small class="text-muted">How long should your breaks be between study sessions?</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="preferred_session_length" class="form-label">Preferred Session Length (minutes)</label>
+                            <input type="number" class="form-control" id="preferred_session_length" name="preferred_session_length" value="{{ preferences.preferred_session_length or 60 }}" min="15" max="180">
+                            <small class="text-muted">How long do you prefer each study session to be?</small>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="weekend_study" name="weekend_study" {% if preferences.weekend_study %}checked{% endif %}>
+                            <label class="form-check-label" for="weekend_study">Include weekends in study schedule</label>
+                        </div>
+                        
+                        <h5 class="mt-4 mb-3">Preferred Study Times</h5>
+                        
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="morning" name="morning" {% if user.get_preferred_times().morning %}checked{% endif %}>
+                                    <label class="form-check-label" for="morning">
+                                        Morning (6am-12pm)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="afternoon" name="afternoon" {% if user.get_preferred_times().afternoon %}checked{% endif %}>
+                                    <label class="form-check-label" for="afternoon">
+                                        Afternoon (12pm-5pm)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="evening" name="evening" {% if user.get_preferred_times().evening %}checked{% endif %}>
+                                    <label class="form-check-label" for="evening">
+                                        Evening (5pm-10pm)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="night" name="night" {% if user.get_preferred_times().night %}checked{% endif %}>
+                                    <label class="form-check-label" for="night">
+                                        Night (10pm-6am)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Account Summary</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Member since:</strong> {{ user.created_at.strftime('%B %d, %Y') }}</p>
+                    <p><strong>Total subjects:</strong> {{ user.subjects|length }}</p>
+                    <p><strong>Total study sessions:</strong> {{ user.study_sessions|length }}</p>
+                    <p><strong>Completed sessions:</strong> {{ user.study_sessions|selectattr('is_completed', 'eq', true)|list|length }}</p>
+                    
+                    <hr>
+                    <h6 class="mb-3">Need help?</h6>
+                    <p>Contact us at <a href="mailto:support@ghanastudyplanner.com">support@ghanastudyplanner.com</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

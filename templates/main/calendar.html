@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Calendar - Ghana Smart Study Planner{% endblock %}
+
+{% block extra_css %}
+<style>
+    .calendar-container {
+        background-color: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        color: var(--primary-color);
+    }
+    
+    .fc-button-primary {
+        background-color: var(--primary-color) !important;
+        border-color: var(--primary-color) !important;
+    }
+    
+    .fc-button-primary:hover {
+        background-color: #00695c !important;
+        border-color: #00695c !important;
+    }
+    
+    .fc-event {
+        border-radius: 4px;
+        border: none !important;
+        padding: 2px 5px;
+    }
+    
+    .fc-daygrid-event-dot {
+        border-color: var(--primary-color) !important;
+    }
+    
+    .event-legend {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .legend-color {
+        width: 15px;
+        height: 15px;
+        border-radius: 3px;
+        margin-right: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0"><i class="fas fa-calendar-week me-2"></i>Study Calendar</h1>
+        <div>
+            <a href="{{ url_for('scheduler.index') }}" class="btn btn-outline-primary">
+                <i class="fas fa-calendar-alt me-1"></i>Schedule Manager
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-9">
+            <div class="calendar-container mb-4">
+                <div id="calendar"></div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3">
+            <div class="event-legend">
+                <h5 class="mb-3">Subject Legend</h5>
+                <div id="subject-legend">
+                    <!-- Will be populated by JavaScript -->
+                    <div class="text-center py-3 d-none" id="no-subjects">
+                        <p class="text-muted">No subjects added yet</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h5 class="mb-3">Session Status</h5>
+                <div class="legend-item">
+                    <div class="legend-color bg-primary"></div>
+                    <span>Upcoming</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color bg-primary" style="opacity: 0.7; text-decoration: line-through;"></div>
+                    <span>Completed</span>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h5 class="card-title">Calendar Tips</h5>
+                    <ul class="card-text">
+                        <li>Click on a study session to view details</li>
+                        <li>Switch between month, week, and day views</li>
+                        <li>Drag sessions to reschedule (on desktop)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Prepare calendar events from the data passed by the server
+        const events = {{ events|tojson|safe }};
+        
+        // Track unique subjects for the legend
+        const subjects = {};
+        
+        // Initialize calendar
+        const calendarEl = document.getElementById('calendar');
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'timeGridWeek',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            events: events,
+            eventTimeFormat: {
+                hour: '2-digit',
+                minute: '2-digit',
+                meridiem: true
+            },
+            nowIndicator: true,
+            allDaySlot: false,
+            slotMinTime: '06:00:00',
+            slotMaxTime: '22:00:00',
+            height: 'auto',
+            eventClick: function(info) {
+                // Navigate to session details
+                window.location.href = `/scheduler/session/${info.event.id}`;
+            },
+            eventClassNames: function(arg) {
+                // Add class to completed events
+                if (arg.event.extendedProps.completed) {
+                    return ['completed'];
+                }
+                return [];
+            },
+            eventDidMount: function(info) {
+                // Keep track of unique subjects for the legend
+                const subject = info.event.title;
+                const color = info.event.backgroundColor;
+                
+                if (!subjects[subject]) {
+                    subjects[subject] = color;
+                }
+                
+                // Add tooltip
+                const content = `
+                    <strong>${subject}</strong><br>
+                    ${info.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - 
+                    ${info.event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}<br>
+                    ${info.event.extendedProps.completed ? 'Completed' : 'Not completed'}
+                `;
+                
+                new bootstrap.Tooltip(info.el, {
+                    title: content,
+                    html: true,
+                    placement: 'top',
+                    customClass: 'calendar-tooltip'
+                });
+            },
+            datesSet: function() {
+                // Create the legend when calendar is rendered
+                createSubjectLegend(subjects);
+            }
+        });
+        
+        calendar.render();
+        
+        // Function to create the subject legend
+        function createSubjectLegend(subjects) {
+            const legendContainer = document.getElementById('subject-legend');
+            const noSubjectsEl = document.getElementById('no-subjects');
+            
+            // Clear existing legend
+            legendContainer.innerHTML = '';
+            
+            // Add each subject to the legend
+            const subjectNames = Object.keys(subjects);
+            
+            if (subjectNames.length === 0) {
+                noSubjectsEl.classList.remove('d-none');
+                legendContainer.appendChild(noSubjectsEl);
+                return;
+            }
+            
+            subjectNames.sort().forEach(subject => {
+                const color = subjects[subject];
+                
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                
+                const colorBox = document.createElement('div');
+                colorBox.className = 'legend-color';
+                colorBox.style.backgroundColor = color;
+                
+                const subjectName = document.createElement('span');
+                subjectName.textContent = subject;
+                
+                legendItem.appendChild(colorBox);
+                legendItem.appendChild(subjectName);
+                
+                legendContainer.appendChild(legendItem);
+            });
+        }
+    });
+</script>
+{% endblock %} 

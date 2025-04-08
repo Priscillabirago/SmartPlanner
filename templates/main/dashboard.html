@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Ghana Smart Study Planner{% endblock %}
+
+{% block extra_css %}
+<style>
+    .study-session {
+        border-left: 5px solid var(--primary-color);
+        transition: all 0.2s ease;
+    }
+    
+    .study-session.completed {
+        border-left-color: var(--success-color);
+        background-color: rgba(76, 175, 80, 0.1);
+    }
+    
+    .subject-pill {
+        display: inline-block;
+        padding: 0.25rem 0.6rem;
+        border-radius: 2rem;
+        font-size: 0.8rem;
+        color: #fff;
+        margin-right: 0.5rem;
+    }
+    
+    .stat-card {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        transition: transform 0.2s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    
+    .progress-circle {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    
+    .progress-ring {
+        transform: rotate(-90deg);
+    }
+    
+    .progress-ring-circle {
+        stroke-dasharray: 301.59;
+        stroke-dashoffset: calc(301.59 - (301.59 * {{ completion_rate }}) / 100);
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.5s ease;
+    }
+    
+    .progress-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
+        <div>
+            <a href="{{ url_for('subjects.add') }}" class="btn btn-sm btn-outline-primary me-2">
+                <i class="fas fa-plus me-1"></i>Add Subject
+            </a>
+            <a href="{{ url_for('scheduler.index') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-calendar-plus me-1"></i>Manage Schedule
+            </a>
+        </div>
+    </div>
+
+    {% if not subjects %}
+    <div class="alert alert-info">
+        <h4 class="alert-heading">Welcome to your dashboard!</h4>
+        <p>You don't have any subjects yet. Start by adding your subjects, then generate a study schedule.</p>
+        <hr>
+        <a href="{{ url_for('subjects.add') }}" class="btn btn-primary">
+            <i class="fas fa-book me-1"></i>Add Your First Subject
+        </a>
+    </div>
+    {% else %}
+
+    <!-- Stats Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase">Subjects</h6>
+                            <h2 class="mb-0">{{ subjects|length }}</h2>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase">Study Sessions</h6>
+                            <h2 class="mb-0">{{ total_sessions }}</h2>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase">Completed</h6>
+                            <h2 class="mb-0">{{ completed_sessions }}</h2>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-warning text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase">Today's Sessions</h6>
+                            <h2 class="mb-0">{{ today_sessions|length }}</h2>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-day"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Today's Schedule -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-calendar-day me-2"></i>Today's Schedule</h5>
+                </div>
+                <div class="card-body">
+                    {% if today_sessions %}
+                        {% for session in today_sessions %}
+                        <div class="study-session p-3 mb-3 rounded border {% if session.completed %}completed{% endif %}" data-session-id="{{ session.id }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1">{{ session.subject.name }}</h5>
+                                    <p class="text-muted mb-0">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ session.start_time.strftime('%I:%M %p') }} - {{ session.end_time.strftime('%I:%M %p') }}
+                                        <span class="ms-2 text-muted">
+                                            <i class="fas fa-hourglass-half me-1"></i>{{ session.duration_minutes() }} minutes
+                                        </span>
+                                    </p>
+                                </div>
+                                <div>
+                                    {% if not session.completed %}
+                                    <button class="btn btn-sm btn-outline-success complete-session-btn" data-session-id="{{ session.id }}">
+                                        <i class="fas fa-check me-1"></i>Mark Complete
+                                    </button>
+                                    {% else %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check me-1"></i>Completed
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-day fa-3x mb-3 text-muted"></i>
+                            <p class="lead">No study sessions scheduled for today.</p>
+                            <a href="{{ url_for('scheduler.index') }}" class="btn btn-primary mt-2">
+                                <i class="fas fa-calendar-plus me-1"></i>Manage Schedule
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Upcoming Sessions -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-calendar-alt me-2"></i>Upcoming Sessions</h5>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_sessions %}
+                        {% for session in upcoming_sessions %}
+                        <div class="study-session p-3 mb-3 rounded border">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="mb-1">
+                                        <span class="subject-pill" style="background-color: {{ session.subject.color if session.subject.color else '#3498db' }}">
+                                            {{ session.subject.name }}
+                                        </span>
+                                        <small class="text-muted">{{ session.start_time.strftime('%A, %B %d') }}</small>
+                                    </div>
+                                    <p class="text-muted mb-0">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ session.start_time.strftime('%I:%M %p') }} - {{ session.end_time.strftime('%I:%M %p') }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-week fa-3x mb-3 text-muted"></i>
+                            <p class="lead">No upcoming study sessions in the next 3 days.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats and Subject List -->
+        <div class="col-lg-4">
+            <!-- Completion Rate -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>Completion Rate</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="progress-circle mb-3">
+                        <svg class="progress-ring" width="120" height="120">
+                            <circle
+                                class="progress-ring-circle-bg"
+                                stroke="#e9ecef"
+                                stroke-width="8"
+                                fill="transparent"
+                                r="48"
+                                cx="60"
+                                cy="60"
+                            />
+                            <circle
+                                class="progress-ring-circle"
+                                stroke="#00796b"
+                                stroke-width="8"
+                                fill="transparent"
+                                r="48"
+                                cx="60"
+                                cy="60"
+                            />
+                        </svg>
+                        <div class="progress-text">{{ completion_rate }}%</div>
+                    </div>
+                    <p class="text-muted">
+                        You've completed {{ completed_sessions }} out of {{ total_sessions }} planned study sessions.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Subject List -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-book me-2"></i>Your Subjects</h5>
+                </div>
+                <div class="card-body">
+                    {% if subjects %}
+                        <div class="list-group">
+                            {% for subject in subjects %}
+                            <a href="{{ url_for('subjects.tasks', subject_id=subject.id) }}" class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">{{ subject.name }}</h6>
+                                        <small class="text-muted">
+                                            Priority: 
+                                            {% for i in range(subject.priority) %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% endfor %}
+                                            {% for i in range(5 - subject.priority) %}
+                                                <i class="far fa-star text-muted"></i>
+                                            {% endfor %}
+                                        </small>
+                                    </div>
+                                    {% if subject.exam_date %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-calendar-alt me-1"></i>
+                                        {{ subject.exam_date.strftime('%b %d') }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <p>No subjects added yet.</p>
+                            <a href="{{ url_for('subjects.add') }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i>Add Subject
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mark study session as completed via AJAX
+        const completeButtons = document.querySelectorAll('.complete-session-btn');
+        completeButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                const sessionId = this.getAttribute('data-session-id');
+                const button = this;
+                
+                // Make API call to mark session as completed
+                fetch(`/mark_completed/${sessionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update the UI
+                        const sessionElement = document.querySelector(`.study-session[data-session-id="${sessionId}"]`);
+                        sessionElement.classList.add('completed');
+                        
+                        // Replace button with completed badge
+                        button.outerHTML = '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Completed</span>';
+                        
+                        // Update the stats (optional, could also reload page)
+                        const completedCountElement = document.querySelector('.bg-info h2');
+                        if (completedCountElement) {
+                            const currentCount = parseInt(completedCountElement.textContent);
+                            completedCountElement.textContent = currentCount + 1;
+                        }
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        });
+    });
+</script>
+{% endblock %} 

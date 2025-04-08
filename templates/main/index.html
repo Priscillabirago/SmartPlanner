@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Ghana Smart Study Planner - Optimize Your Study Time{% endblock %}
+
+{% block content %}
+<!-- Hero section -->
+<section class="welcome-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <div class="hero-content">
+                    <h1 class="mb-4 fw-bold display-4">Achieve Academic Excellence with Smart Study Planning</h1>
+                    <p class="lead mb-4">
+                        Ghana Smart Study Planner helps students create personalized study schedules based on their priorities, 
+                        workload, and academic goals - designed specifically for Ghanaian students.
+                    </p>
+                    <div class="hero-buttons mt-5">
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg px-4 me-md-3 fw-semibold">
+                            <i class="fas fa-user-plus me-2"></i>Get Started
+                        </a>
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg px-4 fw-semibold">
+                            <i class="fas fa-sign-in-alt me-2"></i>Log In
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 d-none d-lg-block">
+                <div class="hero-image-container">
+                    <img src="{{ url_for('static', filename='img/hero-image.svg') }}" alt="Student studying" class="img-fluid hero-image">
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features section -->
+<section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">Smart Features for Better Study Results</h2>
+            <p class="lead text-muted">
+                Our planner is designed to help you study smarter, not harder
+            </p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="feature-box">
+                    <div class="icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3>Smart Scheduling</h3>
+                    <p>
+                        Our advanced algorithm creates personalized study schedules based on subject priority, 
+                        workload, difficulty, and upcoming exams.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="feature-box">
+                    <div class="icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Progress Tracking</h3>
+                    <p>
+                        Monitor your study habits and progress with intuitive visualizations and statistics to 
+                        help you stay on track.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="feature-box">
+                    <div class="icon">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <h3>Task Management</h3>
+                    <p>
+                        Organize assignments and study goals for each subject, with priority levels and deadline reminders.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="feature-box">
+                    <div class="icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <h3>Calendar View</h3>
+                    <p>
+                        View your entire study schedule in a familiar calendar interface that syncs with your study preferences.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="feature-box">
+                    <div class="icon">
+                        <i class="fas fa-user-cog"></i>
+                    </div>
+                    <h3>Personalization</h3>
+                    <p>
+                        Set your preferred study times, break duration, and weekly study goals to create a schedule that works for you.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="feature-box">
+                    <div class="icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h3>Mobile Friendly</h3>
+                    <p>
+                        Access your study planner on any device - desktop, tablet, or smartphone - for studying on the go.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How it works section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">How It Works</h2>
+            <p class="lead text-muted">Start optimizing your study time in just a few simple steps</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <div class="bg-primary rounded-circle d-inline-flex justify-content-center align-items-center mb-3" style="width: 60px; height: 60px;">
+                        <h3 class="text-white m-0">1</h3>
+                    </div>
+                    <h4>Create Account</h4>
+                    <p>Sign up with your email and set your academic goals and study preferences</p>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="text-center">
+                    <div class="bg-primary rounded-circle d-inline-flex justify-content-center align-items-center mb-3" style="width: 60px; height: 60px;">
+                        <h3 class="text-white m-0">2</h3>
+                    </div>
+                    <h4>Add Subjects</h4>
+                    <p>Add your subjects with details about workload, priority, and exam dates</p>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="text-center">
+                    <div class="bg-primary rounded-circle d-inline-flex justify-content-center align-items-center mb-3" style="width: 60px; height: 60px;">
+                        <h3 class="text-white m-0">3</h3>
+                    </div>
+                    <h4>Generate Schedule</h4>
+                    <p>Our algorithm creates a personalized study plan based on your inputs</p>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="text-center">
+                    <div class="bg-primary rounded-circle d-inline-flex justify-content-center align-items-center mb-3" style="width: 60px; height: 60px;">
+                        <h3 class="text-white m-0">4</h3>
+                    </div>
+                    <h4>Start Studying</h4>
+                    <p>Follow your schedule and track your progress to improve your results</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials section -->
+<section class="py-5">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">What Students Say</h2>
+            <p class="lead text-muted">Join hundreds of Ghanaian students improving their study habits</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-4">
+                <div class="testimonial">
+                    <p class="quote">
+                        "This planner has completely transformed how I study. I'm now able to balance all my subjects effectively and my grades have improved significantly!"
+                    </p>
+                    <div class="student-info">
+                        <img src="{{ url_for('static', filename='img/student-1.jpg') }}" alt="Student" onerror="this.src='https://ui-avatars.com/api/?name=Kofi+Mensah&background=random'">
+                        <div>
+                            <p class="student-name">Kofi Mensah</p>
+                            <p class="student-school">University of Ghana</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="testimonial">
+                    <p class="quote">
+                        "As a working student, finding time to study was always a challenge. This planner helps me make the most of the limited time I have available for studying."
+                    </p>
+                    <div class="student-info">
+                        <img src="{{ url_for('static', filename='img/student-2.jpg') }}" alt="Student" onerror="this.src='https://ui-avatars.com/api/?name=Ama+Owusu&background=random'">
+                        <div>
+                            <p class="student-name">Ama Owusu</p>
+                            <p class="student-school">KNUST</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="testimonial">
+                    <p class="quote">
+                        "The smart algorithm really understands my priorities. I love how it adjusts my schedule as exam dates approach to focus on the most important subjects."
+                    </p>
+                    <div class="student-info">
+                        <img src="{{ url_for('static', filename='img/student-3.jpg') }}" alt="Student" onerror="this.src='https://ui-avatars.com/api/?name=Kwame+Addo&background=random'">
+                        <div>
+                            <p class="student-name">Kwame Addo</p>
+                            <p class="student-school">Achimota School</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA section -->
+<section class="py-5 bg-primary text-white">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold">Ready to improve your study habits?</h2>
+                <p class="lead">
+                    Join fellow Ghanaian students who are achieving better results through smart study planning.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg px-4">
+                    <i class="fas fa-user-plus me-2"></i>Get Started Now
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %} 
