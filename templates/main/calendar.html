@@ -30,6 +30,54 @@
         border-radius: 4px;
         border: none !important;
         padding: 2px 5px;
+        margin-bottom: 1px;
+        overflow: hidden;
+    }
+    
+    /* Better handling of overlapping events */
+    .fc-timegrid-event-harness {
+        margin-left: 2px;
+        margin-right: 2px;
+    }
+    
+    /* Custom event styling */
+    .custom-event {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        padding: 2px 4px;
+    }
+    
+    .event-title {
+        font-weight: bold;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .event-time {
+        font-size: 0.8em;
+        opacity: 0.8;
+    }
+    
+    .event-completed {
+        text-decoration: line-through;
+        opacity: 0.7;
+    }
+    
+    /* Handle calendar at different screen sizes */
+    @media (max-width: 768px) {
+        .fc-toolbar {
+            flex-direction: column;
+        }
+        
+        .fc-toolbar-chunk {
+            margin-bottom: 0.5rem;
+        }
+        
+        .fc-toolbar-title {
+            font-size: 1.2rem !important;
+        }
     }
     
     .fc-daygrid-event-dot {
@@ -119,21 +167,21 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Prepare calendar events from the data passed by the server
-        const events = {{ events|tojson|safe }};
+        var calendarEvents = JSON.parse('{{ events|tojson|safe }}');
         
         // Track unique subjects for the legend
-        const subjects = {};
+        var subjectMap = {};
         
         // Initialize calendar
-        const calendarEl = document.getElementById('calendar');
-        const calendar = new FullCalendar.Calendar(calendarEl, {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGridWeek',
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            events: events,
+            events: calendarEvents,
             eventTimeFormat: {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -144,33 +192,66 @@
             slotMinTime: '06:00:00',
             slotMaxTime: '22:00:00',
             height: 'auto',
-            eventClick: function(info) {
-                // Navigate to session details
-                window.location.href = `/scheduler/session/${info.event.id}`;
-            },
-            eventClassNames: function(arg) {
-                // Add class to completed events
-                if (arg.event.extendedProps.completed) {
-                    return ['completed'];
+            // Options to better handle overlapping events
+            slotEventOverlap: false, // Prevent events from visually overlapping
+            eventMaxStack: 1, // Limit to only 1 event per time slot
+            forceEventDuration: true, // Ensure events have an end time
+            // Unique ID for events to avoid duplicates
+            eventDataTransform: function(event) {
+                // Create a unique ID for the event based on title, start time and date if not already set
+                if (!event.id) {
+                    const startDate = new Date(event.start);
+                    const dateStr = startDate.toISOString().split('T')[0];
+                    const timeStr = startDate.toTimeString().split(' ')[0].substring(0, 5);
+                    event.id = `${event.title}-${dateStr}-${timeStr}`;
                 }
-                return [];
+                return event;
             },
+            // Allow handling of event drops (for rescheduling)
+            editable: true,
+            // Group identical events together
             eventDidMount: function(info) {
                 // Keep track of unique subjects for the legend
-                const subject = info.event.title;
-                const color = info.event.backgroundColor;
+                var subject = info.event.title;
+                var color = info.event.backgroundColor;
                 
-                if (!subjects[subject]) {
-                    subjects[subject] = color;
+                // Check if this is a duplicate event (same title, time, date)
+                const sameEvents = calendar.getEvents().filter(e => {
+                    if (e.id === info.event.id) return false; // Skip self
+                    if (e.title !== info.event.title) return false;
+                    
+                    // Check if times match
+                    const sameStart = e.start && info.event.start && 
+                                     e.start.getTime() === info.event.start.getTime();
+                    const sameEnd = e.end && info.event.end && 
+                                   e.end.getTime() === info.event.end.getTime();
+                    
+                    return sameStart && sameEnd;
+                });
+                
+                // If this is a duplicate, we may need to handle it
+                if (sameEvents.length > 0) {
+                    // Option 1: Add counter to title
+                    // info.event.setProp('title', info.event.title + ' (' + (sameEvents.length + 1) + ')');
+                    
+                    // Option 2: For study sessions, you might want to remove duplicates
+                    // if they're truly duplicates and not just same subject at same time
+                    if (info.event.start && sameEvents[0].start && 
+                        info.event.start.getTime() === sameEvents[0].start.getTime()) {
+                        // This is likely an actual duplicate - remove it
+                        info.event.remove();
+                    }
+                }
+                
+                if (!subjectMap[subject]) {
+                    subjectMap[subject] = color;
                 }
                 
                 // Add tooltip
-                const content = `
-                    <strong>${subject}</strong><br>
-                    ${info.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - 
-                    ${info.event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}<br>
-                    ${info.event.extendedProps.completed ? 'Completed' : 'Not completed'}
-                `;
+                var content = '<strong>' + subject + '</strong><br>' + 
+                    info.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' - ' + 
+                    info.event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + '<br>' +
+                    (info.event.extendedProps.completed ? 'Completed' : 'Not completed');
                 
                 new bootstrap.Tooltip(info.el, {
                     title: content,
@@ -179,9 +260,80 @@
                     customClass: 'calendar-tooltip'
                 });
             },
+            eventDrop: function(info) {
+                // When an event is dragged to a new time/date
+                var sessionId = info.event.id;
+                var newDate = info.event.start.toISOString().split('T')[0];
+                var newTime = info.event.start.toTimeString().split(' ')[0].substring(0, 5);
+                
+                // Call the reschedule API endpoint
+                fetch('/scheduler/reschedule', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        new_date: newDate,
+                        new_time: newTime
+                    })
+                })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        // Placeholder for success notification
+                        console.log('Session rescheduled successfully');
+                    } else {
+                        console.error('Error rescheduling session: ' + data.message);
+                        info.revert(); // Revert the drag if it failed
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error:', error);
+                    info.revert(); // Revert the drag on error
+                });
+            },
+            eventClick: function(info) {
+                // Navigate to session details
+                window.location.href = '/scheduler/session/' + info.event.id;
+            },
+            eventClassNames: function(arg) {
+                // Add class to completed events
+                if (arg.event.extendedProps.completed) {
+                    return ['completed'];
+                }
+                return [];
+            },
+            eventContent: function(arg) {
+                // Customize event display
+                var eventEl = document.createElement('div');
+                eventEl.classList.add('custom-event');
+                
+                var titleEl = document.createElement('div');
+                titleEl.classList.add('event-title');
+                titleEl.innerHTML = arg.event.title;
+                
+                var timeEl = document.createElement('div');
+                timeEl.classList.add('event-time');
+                timeEl.innerHTML = arg.timeText;
+                
+                // Add status indicator
+                if (arg.event.extendedProps.completed) {
+                    var checkEl = document.createElement('i');
+                    checkEl.classList.add('fas', 'fa-check-circle', 'ms-1');
+                    titleEl.appendChild(checkEl);
+                    eventEl.classList.add('event-completed');
+                }
+                
+                eventEl.appendChild(titleEl);
+                eventEl.appendChild(timeEl);
+                
+                return { domNodes: [eventEl] };
+            },
             datesSet: function() {
                 // Create the legend when calendar is rendered
-                createSubjectLegend(subjects);
+                createSubjectLegend(subjectMap);
             }
         });
         
@@ -189,14 +341,14 @@
         
         // Function to create the subject legend
         function createSubjectLegend(subjects) {
-            const legendContainer = document.getElementById('subject-legend');
-            const noSubjectsEl = document.getElementById('no-subjects');
+            var legendContainer = document.getElementById('subject-legend');
+            var noSubjectsEl = document.getElementById('no-subjects');
             
             // Clear existing legend
             legendContainer.innerHTML = '';
             
             // Add each subject to the legend
-            const subjectNames = Object.keys(subjects);
+            var subjectNames = Object.keys(subjects);
             
             if (subjectNames.length === 0) {
                 noSubjectsEl.classList.remove('d-none');
@@ -204,17 +356,17 @@
                 return;
             }
             
-            subjectNames.sort().forEach(subject => {
-                const color = subjects[subject];
+            subjectNames.sort().forEach(function(subject) {
+                var color = subjects[subject];
                 
-                const legendItem = document.createElement('div');
+                var legendItem = document.createElement('div');
                 legendItem.className = 'legend-item';
                 
-                const colorBox = document.createElement('div');
+                var colorBox = document.createElement('div');
                 colorBox.className = 'legend-color';
                 colorBox.style.backgroundColor = color;
                 
-                const subjectName = document.createElement('span');
+                var subjectName = document.createElement('span');
                 subjectName.textContent = subject;
                 
                 legendItem.appendChild(colorBox);

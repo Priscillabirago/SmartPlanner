@@ -38,7 +38,9 @@ def index():
         'scheduler/index.html',
         subjects=subjects,
         schedule_days=days,
-        now=now
+        now=now,
+        datetime=datetime,
+        timedelta=timedelta
     )
 
 
@@ -53,15 +55,8 @@ def generate():
         flash('You need to add subjects before generating a schedule.', 'warning')
         return redirect(url_for('subjects.index'))
     
-    # Clear existing future sessions if requested
-    clear_existing = request.form.get('clear_existing') == 'yes'
-    if clear_existing:
-        now = datetime.now(GHANA_TZ)
-        StudySession.query.filter(
-            StudySession.user_id == current_user.id,
-            StudySession.start_time >= now
-        ).delete()
-        db.session.commit()
+    # ALWAYS clear existing future sessions to prevent overlaps
+    now = datetime.now(GHANA_TZ)
     
     # Get scheduling parameters
     start_date_str = request.form.get('start_date')
@@ -72,20 +67,29 @@ def generate():
         try:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             # Set time to current time
-            now = datetime.now(GHANA_TZ)
+            current_time = datetime.now(GHANA_TZ)
             start_date = start_date.replace(
-                hour=now.hour, 
-                minute=now.minute, 
-                second=now.second
+                hour=current_time.hour, 
+                minute=current_time.minute, 
+                second=current_time.second
             )
             start_date = GHANA_TZ.localize(start_date)
         except ValueError:
             flash('Invalid start date format. Using today instead.', 'warning')
-            start_date = datetime.now(GHANA_TZ)
+            start_date = now
     else:
-        start_date = datetime.now(GHANA_TZ)
+        start_date = now
     
+    # Calculate end date based on the provided days
     end_date = start_date + timedelta(days=days)
+    
+    # Always delete ALL future sessions to prevent overlaps
+    StudySession.query.filter(
+        StudySession.user_id == current_user.id,
+        StudySession.start_time >= start_date
+    ).delete()
+    
+    db.session.commit()
     
     # Create scheduler with user preferences
     schedule_generator = StudyScheduler(
@@ -172,11 +176,55 @@ def delete_session(session_id):
 @login_required
 def reschedule_session():
     """Reschedule a study session to a different time."""
-    session_id = request.form.get('session_id', type=int)
-    new_date_str = request.form.get('new_date')
-    new_time_str = request.form.get('new_time')
+    data = request.get_json()  # Get JSON data instead of form data
     
-    session = StudySession.query.get_or_404(session_id)
+    session_id = data.get('session_id')
+    new_date_str = data.get('new_date')
+    new_time_str = data.get('new_time')
+    
+    if not session_id or not new_date_str or not new_time_str:
+        return jsonify({'success': False, 'message': 'Missing required data'}), 400
+    
+    # If session_id is not numeric, it might be a composite ID (from calendar)
+    if isinstance(session_id, str) and '-' in session_id:
+        # Try to find the session by date/time/subject
+        parts = session_id.split('-')
+        subject_name = parts[0]
+        date_str = parts[1]
+        time_str = parts[2] if len(parts) > 2 else None
+        
+        # Find the subject by name
+        subject = Subject.query.filter_by(
+            user_id=current_user.id, 
+            name=subject_name
+        ).first()
+        
+        if not subject or not time_str:
+            return jsonify({'success': False, 'message': 'Session not found'}), 404
+        
+        # Find the session that matches
+        try:
+            # Convert composite strings to datetime
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            time_obj = datetime.strptime(time_str, '%H:%M').time()
+            session_start = GHANA_TZ.localize(datetime.combine(date_obj, time_obj))
+            
+            # Find sessions that start at this time for this subject
+            session = StudySession.query.filter(
+                StudySession.user_id == current_user.id,
+                StudySession.subject_id == subject.id,
+                StudySession.start_time == session_start
+            ).first()
+            
+            if not session:
+                return jsonify({'success': False, 'message': 'Session not found'}), 404
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Error finding session: {str(e)}'}), 400
+    else:
+        # Find by numeric ID
+        session = StudySession.query.get(session_id)
+        if not session:
+            return jsonify({'success': False, 'message': 'Session not found'}), 404
     
     # Security check: ensure the session belongs to the current user
     if session.user_id != current_user.id:
@@ -185,7 +233,9 @@ def reschedule_session():
     try:
         # Parse new date and time
         new_datetime_str = f"{new_date_str} {new_time_str}"
-        new_start_time = datetime.strptime(new_datetime_str, '%Y-%m-%d %H:%M')
+        naive_datetime = datetime.strptime(new_datetime_str, '%Y-%m-%d %H:%M')
+        # Add Ghana timezone information to make it timezone-aware
+        new_start_time = GHANA_TZ.localize(naive_datetime)
         
         # Calculate session duration
         duration = session.end_time - session.start_time
