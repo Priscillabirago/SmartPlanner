@@ -128,9 +128,9 @@
                 </div>
                 <div class="card-body">
                     <p><strong>Member since:</strong> {{ user.created_at.strftime('%B %d, %Y') }}</p>
-                    <p><strong>Total subjects:</strong> {{ user.subjects|length }}</p>
-                    <p><strong>Total study sessions:</strong> {{ user.study_sessions|length }}</p>
-                    <p><strong>Completed sessions:</strong> {{ user.study_sessions|selectattr('is_completed', 'eq', true)|list|length }}</p>
+                    <p><strong>Total subjects:</strong> {{ user.subjects.count() }}</p>
+                    <p><strong>Total study sessions:</strong> {{ user.study_sessions.count() }}</p>
+                    <p><strong>Completed sessions:</strong> {{ user.study_sessions.filter_by(completed=True).count() }}</p>
                     
                     <hr>
                     <h6 class="mb-3">Need help?</h6>

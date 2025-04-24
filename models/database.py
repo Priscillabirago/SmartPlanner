@@ -3,6 +3,14 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import json
+import pytz
+
+# Define Ghana timezone
+GHANA_TZ = pytz.timezone('Africa/Accra')
+
+# Create timezone-aware now function for defaults
+def ghana_time_now():
+    return datetime.now(GHANA_TZ)
 
 db = SQLAlchemy()
 
@@ -25,7 +33,7 @@ class User(db.Model, UserMixin):
         "night": False
     }))
     academic_goals = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=ghana_time_now)
     
     # Relationships
     subjects = db.relationship('Subject', backref='user', lazy='dynamic', cascade="all, delete-orphan")
@@ -60,7 +68,7 @@ class Subject(db.Model):
     exam_date = db.Column(db.DateTime, nullable=True)
     color = db.Column(db.String(7), default="#3498db")  # Hex color code
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=ghana_time_now)
     
     # Relationships
     study_sessions = db.relationship('StudySession', backref='subject', lazy='dynamic', cascade="all, delete-orphan")
@@ -82,7 +90,7 @@ class StudySession(db.Model):
     productivity_rating = db.Column(db.Integer, nullable=True)  # 1-5 scale
     notes = db.Column(db.Text)
     location = db.Column(db.String(128))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=ghana_time_now)
     
     def duration_minutes(self):
         """Calculate session duration in minutes."""
@@ -107,7 +115,7 @@ class Task(db.Model):
     estimated_time = db.Column(db.Integer)  # Minutes
     completed = db.Column(db.Boolean, default=False)
     priority = db.Column(db.Integer)  # 1-5 scale
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=ghana_time_now)
     
     # Relationships
     subject = db.relationship('Subject', backref='tasks')

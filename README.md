@@ -1,67 +1,144 @@
-# Smart Study Planner - Preliminary Code
+# Ghana Smart Study Planner
 
-## Overview
-This project is a **Smart Study Planner** designed for **Ghanaian students** to optimize their study schedules. The planner dynamically assigns study sessions based on **workload, priority, and availability** using a **greedy scheduling algorithm**. 
+![Ghana Smart Study Planner Logo](/static/img/logo.png)
+
+A powerful study scheduling tool designed specifically for Ghanaian students to optimize their study time and improve academic performance.
 
 ## Features
-- **SQLite Database:** Stores user profiles, study subjects, and scheduled study sessions.
-- **Dynamic Scheduling Algorithm:** Allocates study sessions based on priority and workload.
-- **Automated Adjustments:** Ensures that high-priority subjects are scheduled first.
-- **Basic Data Storage:** Tracks user study habits and completion rates.
+
+- **Smart Schedule Generation**: Creates personalized study schedules based on subject priority, workload, difficulty, and upcoming exams
+- **Dynamic Scheduling Algorithm**: Adapts to each student's study habits, preferences, and academic goals
+- **User-Friendly Interface**: Modern, responsive web interface accessible on various devices
+- **Visual Analytics**: Track your study progress with intuitive charts and statistics
+- **Task Management**: Organize assignments and study goals for each subject
+- **Calendar Integration**: View your study schedule in a familiar calendar interface
+- **Ghana-Specific Design**: Tailored for the Ghanaian educational system and student needs
+
+## Technology Stack
+
+- **Backend**: Python with Flask framework
+- **Database**: SQLite (SQLAlchemy ORM)
+- **Frontend**: HTML, CSS, JavaScript, Bootstrap
+- **Charts**: Chart.js
+- **Calendar**: FullCalendar
+
+## 🚀 Installation
+
+### Prerequisites
+- Python 3.7 or higher
+- pip (Python package manager)
+- Git
+
+### Setup Instructions
+
+1. Clone the repository or download:
+   ```bash
+   git clone https://github.com/yourusername/SmartPlanner.git
+   cd SmartPlanner
+   ```
+
+2. Create and activate a virtual environment (optional but recommended):
+   ```bash
+   # On macOS/Linux
+   python -m venv venv
+   source venv/bin/activate
+   
+   # On Windows
+   python -m venv venv
+   venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Set up environment variables:
+   ```bash
+   # Copy the example environment file
+   cp .env.example .env
+   
+   # Edit the .env file and replace the placeholder values
+   # Make sure to set a strong SECRET_KEY for security
+   ```
+
+5. Initialize the database:
+   ```bash
+   flask db init
+   flask db migrate -m "Initial migration"
+   flask db upgrade
+   ```
+
+6. Run the application:
+   ```bash
+   python app.py
+   ```
+
+7. Access the application in your browser:
+   ```
+   http://127.0.0.1:5000/
+   ```
+
+## 📱 Usage
+
+### Registration and Login
+1. Create a new account with your email, name, and academic details
+2. Log in to access your personalized dashboard
+
+### Setting Up Your Subjects
+1. Navigate to the Subjects section
+2. Add new subjects with details like name, workload, priority, and exam dates
+3. Use the color picker to assign unique colors to each subject for easy identification
+4. Make other relevant changes in your user profile
+
+### Generating Your Study Schedule
+1. Go to the Schedule section
+2. Click "Generate Schedule" to create your personalized study plan
+3. View and manage your study sessions
+4. 'Regenerate schedule whenever you update your information. For example, after adding a new subject, or even after editing anything in previous subjects'
+
+### Tracking Progress
+1. Mark study sessions as completed as you finish them
+2. View statistics on your dashboard for completion rates and study distribution
+3. Add notes to study sessions to track your productivity
+
+## Environment Variables
+The application uses the following environment variables:
+
+- `FLASK_APP`: The entry point of the application (default: app.py)
+- `FLASK_ENV`: The environment mode (development/production)
+- `SECRET_KEY`: Secret key for session security (IMPORTANT: use a strong random key)
+- `DATABASE_URL`: The database connection URL
 
 ## Project Structure
+
 ```
-📁 study_planner_project/
-│── 📄 study_planner.py        # Main script with database setup and scheduling algorithm
-│── 📄 README.md               # Project documentation
-│── 📄 requirements.txt        # Dependencies (if needed in future updates)
-│── 📂 database/               # Directory for database files
-│── 📂 docs/                   # Documentation and design notes
+SmartPlanner/
+├── app/                  # Application package
+│   ├── __init__.py       # Application factory
+│   └── routes/           # Blueprint routes
+│       ├── auth.py       # Authentication routes
+│       ├── main.py       # Main routes
+│       ├── scheduler.py  # Scheduler routes
+│       └── subjects.py   # Subject management routes
+├── models/               # Database models
+│   ├── database.py       # SQLAlchemy models
+│   └── scheduler.py      # Scheduling algorithm
+├── static/               # Static files
+│   ├── css/              # CSS files
+│   ├── js/               # JavaScript files
+│   └── img/              # Images
+├── templates/            # Jinja2 templates
+│   ├── auth/             # Authentication templates
+│   ├── main/             # Main page templates
+│   ├── scheduler/        # Scheduler templates
+│   ├── subjects/         # Subject management templates
+│   └── base.html         # Base template
+├── app.py                # Application entry point
+├── requirements.txt      # Dependencies
+├── .env                  # Environment variables (not committed to version control)
+├── .env.example          # Example environment variables template
+├── .gitignore            # Git ignore file
+└── README.md             # Project documentation
 ```
-
-## Database Schema
-The project uses **SQLite** with the following structure:
-- **Users Table:** Stores user profiles (`id, name, study_hours_per_week, preferred_study_times`).
-- **Subjects Table:** Stores subjects (`id, user_id, name, workload, priority`).
-- **Study Sessions Table:** Tracks scheduled study sessions (`id, user_id, subject_id, start_time, end_time, completed`).
-
-## Setup and Execution
-### Prerequisites
-- Python 3.x
-- SQLite3 (included in Python)
-
-### Running the Project
-1. Clone the repository or copy the script.
-2. Run the script to initialize the database and schedule study sessions:
-   ```sh
-   python study_planner.py
-   ```
-3. The generated study schedule will be displayed in the terminal, along with stored database records.
-
-### Expected Output
-The program will print a **generated study schedule** and **database contents** for verification. Example output:
-```
-Generated Study Schedule:
-Subject: Mathematics | Start: 2024-03-08 10:00:00 | End: 2024-03-08 11:00:00
-Subject: Science | Start: 2024-03-08 11:00:00 | End: 2024-03-08 12:00:00
-...
-
-Stored Users:
-(1, 'John Doe', 10, 'Evenings')
-
-Stored Subjects:
-(1, 1, 'Mathematics', 4, 5)
-(2, 1, 'History', 3, 3)
-...
-```
-
-## Next Steps
-- **Expand Scheduling Algorithm**: Add **rescheduling and adaptive learning**.
-- **Frontend UI**: Develop a web or mobile interface for better usability.
-- **Business & Branding Strategy**: Define adoption plans for schools and private tutors.
-- **AI Integration (Stretch Goal)**: Explore machine learning models for study pattern predictions.
-
-
----
-**Note:** This is a **preliminary version**, and further refinements will be added as development progresses.
 

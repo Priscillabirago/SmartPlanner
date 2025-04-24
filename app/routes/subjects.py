@@ -1,9 +1,10 @@
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect
+from flask import Blueprint, render_template, request, redirect, abort
 from flask import url_for, flash, jsonify
 from flask_login import login_required, current_user
 
 from models.database import db, Subject, StudySession, Task
+from models.scheduler import GHANA_TZ  # Import Ghana timezone
 
 subjects = Blueprint('subjects', __name__, url_prefix='/subjects')
 
@@ -35,7 +36,12 @@ def add():
         exam_date = None
         if exam_date_str:
             try:
-                exam_date = datetime.strptime(exam_date_str, '%Y-%m-%d')
+                # Create timezone-aware datetime
+                naive_date = datetime.strptime(exam_date_str, '%Y-%m-%d')
+                # Set time to end of day (23:59:59)
+                naive_date = naive_date.replace(hour=23, minute=59, second=59)
+                # Add timezone info
+                exam_date = GHANA_TZ.localize(naive_date)
             except ValueError:
                 flash('Invalid exam date format. Please use YYYY-MM-DD.', 'danger')
                 return redirect(url_for('subjects.add'))
@@ -97,7 +103,12 @@ def edit(subject_id):
         exam_date_str = request.form.get('exam_date')
         if exam_date_str:
             try:
-                subject.exam_date = datetime.strptime(exam_date_str, '%Y-%m-%d')
+                # Create timezone-aware datetime
+                naive_date = datetime.strptime(exam_date_str, '%Y-%m-%d')
+                # Set time to end of day (23:59:59)
+                naive_date = naive_date.replace(hour=23, minute=59, second=59)
+                # Add timezone info
+                subject.exam_date = GHANA_TZ.localize(naive_date)
             except ValueError:
                 flash('Invalid exam date format. Please use YYYY-MM-DD.', 'danger')
                 return redirect(url_for('subjects.edit', subject_id=subject.id))
@@ -155,59 +166,62 @@ def delete(subject_id):
 @subjects.route('/tasks/<int:subject_id>', methods=['GET', 'POST'])
 @login_required
 def tasks(subject_id):
-    """View and manage tasks for a subject."""
+    """Manage tasks for a specific subject."""
     subject = Subject.query.get_or_404(subject_id)
     
     # Security check: ensure the subject belongs to the current user
     if subject.user_id != current_user.id:
-        flash('You do not have permission to view this subject.', 'danger')
-        return redirect(url_for('subjects.index'))
+        abort(403)
     
+    # Handle new task submission
     if request.method == 'POST':
         title = request.form.get('title')
-        description = request.form.get('description', '')
-        deadline_str = request.form.get('deadline')
-        estimated_time = request.form.get('estimated_time', type=int)
-        priority = request.form.get('priority', type=int, default=3)
-        
-        # Validate required fields
         if not title:
-            flash('Task title is required.', 'danger')
-            return redirect(url_for('subjects.tasks', subject_id=subject.id))
+            flash('Task title is required', 'danger')
+            return redirect(url_for('subjects.tasks', subject_id=subject_id))
+        
+        # Get other form fields
+        description = request.form.get('description', '')
+        priority = int(request.form.get('priority', 3))
+        estimated_time = int(request.form.get('estimated_time', 30))
         
         # Parse deadline if provided
         deadline = None
+        deadline_str = request.form.get('deadline')
         if deadline_str:
             try:
-                deadline = datetime.strptime(deadline_str, '%Y-%m-%d')
+                # Create a naive datetime from the string
+                naive_deadline = datetime.strptime(deadline_str, '%Y-%m-%d')
+                # Make it timezone aware with Ghana timezone
+                deadline = GHANA_TZ.localize(naive_deadline)
             except ValueError:
-                flash('Invalid deadline format. Please use YYYY-MM-DD.', 'danger')
-                return redirect(url_for('subjects.tasks', subject_id=subject.id))
+                flash('Invalid deadline format', 'danger')
         
-        # Create new task
+        # Create the task
         task = Task(
-            user_id=current_user.id,
-            subject_id=subject.id,
             title=title,
             description=description,
-            deadline=deadline,
+            priority=priority,
             estimated_time=estimated_time,
-            priority=priority
+            deadline=deadline,
+            subject_id=subject_id,
+            user_id=current_user.id
         )
         
         db.session.add(task)
         db.session.commit()
         
-        flash('Task added successfully!', 'success')
-        return redirect(url_for('subjects.tasks', subject_id=subject.id))
+        flash('Task added successfully', 'success')
+        return redirect(url_for('subjects.tasks', subject_id=subject_id))
     
-    # Get existing tasks for this subject
-    tasks = Task.query.filter_by(
-        user_id=current_user.id, 
-        subject_id=subject.id
-    ).order_by(Task.deadline, Task.priority.desc()).all()
+    # Get all tasks for this subject
+    tasks = Task.query.filter_by(subject_id=subject_id).order_by(
+        Task.completed, Task.deadline, Task.priority.desc()).all()
     
-    return render_template('subjects/tasks.html', subject=subject, tasks=tasks)
+    # Get current time for deadline comparison
+    now = datetime.now(GHANA_TZ)
+    
+    return render_template('subjects/tasks.html', subject=subject, tasks=tasks, now=now)
 
 
 @subjects.route('/task/complete/<int:task_id>', methods=['POST'])

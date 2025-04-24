@@ -444,4 +444,23 @@ body {
     .dashboard-stat-card .stat {
         font-size: 1.5rem;
     }
+}
+
+/* Custom classes for subject badges and headers */
+.subject-badge {
+    display: inline-block;
+    padding: 0.35em 0.65em;
+    margin-right: 0.5rem;
+    font-size: 0.75em;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+    color: white;
+}
+
+.card-header-colored {
+    color: white;
 } 

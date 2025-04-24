@@ -49,7 +49,6 @@
                 <div class="col-md-4 mb-3 mb-md-0">
                     <form action="{{ url_for('scheduler.generate') }}" method="POST" class="d-inline">
                         <input type="hidden" name="days" value="7">
-                        <input type="hidden" name="clear_existing" value="yes">
                         <button type="submit" class="btn btn-outline-primary d-block w-100">
                             <i class="fas fa-sync me-1"></i>Regenerate Schedule
                         </button>
@@ -63,7 +62,6 @@
                 <div class="col-md-4">
                     <form action="{{ url_for('scheduler.generate') }}" method="POST" class="d-inline" 
                         onsubmit="return confirm('Are you sure you want to clear all scheduled sessions? This cannot be undone.')">
-                        <input type="hidden" name="clear_existing" value="yes">
                         <input type="hidden" name="days" value="0">
                         <button type="submit" class="btn btn-outline-danger d-block w-100">
                             <i class="fas fa-trash-alt me-1"></i>Clear Schedule
@@ -83,9 +81,13 @@
             {% for day, sessions in schedule_days.items() %}
             <div class="schedule-day mb-4">
                 <h4 class="day-header">
-                    {{ now.strftime('%Y-%m-%d') == day ? 'Today' : 
-                       (now + timedelta(days=1)).strftime('%Y-%m-%d') == day ? 'Tomorrow' : 
-                       datetime.strptime(day, '%Y-%m-%d').strftime('%A, %B %d') }}
+                    {% if now.strftime('%Y-%m-%d') == day %}
+                        Today
+                    {% elif (now + timedelta(days=1)).strftime('%Y-%m-%d') == day %}
+                        Tomorrow
+                    {% else %}
+                        {{ datetime.strptime(day, '%Y-%m-%d').strftime('%A, %B %d') }}
+                    {% endif %}
                 </h4>
                 
                 {% for session in sessions %}

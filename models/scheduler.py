@@ -172,7 +172,8 @@ class StudyScheduler:
     def build_daily_schedule(self, 
                             date: datetime.datetime, 
                             subject_allocation: Dict[int, int],
-                            scheduled_sessions: List[Dict[str, Any]]
+                            scheduled_sessions: List[Dict[str, Any]],
+                            subject_time_tracking: Dict[int, Dict[int, int]] = None
                             ) -> List[Dict[str, Any]]:
         """Create a daily schedule based on subject allocation and preferences.
         
@@ -180,6 +181,7 @@ class StudyScheduler:
             date: The target date to schedule
             subject_allocation: Dict mapping subject IDs to allocated hours
             scheduled_sessions: Already scheduled sessions to avoid conflicts
+            subject_time_tracking: Optional tracking of which subjects have been scheduled at which hours
             
         Returns:
             List of scheduled study sessions for the day
@@ -243,7 +245,21 @@ class StudyScheduler:
         # Sort available hours to ensure consistent scheduling (instead of random shuffle)
         available_hours.sort()
         
+        # For better subject rotation, create a queue that rotates through subjects
+        # This helps ensure we don't schedule the same subject consecutively in a day
+        subject_rotation_queue = []
+        
+        # Start with highest priority subjects that have allocation
+        for subject_id, _ in subjects_by_priority:
+            if remaining_allocation[subject_id] > 0:
+                subject_rotation_queue.append(subject_id)
+        
+        # If no subjects have allocation, we're done
+        if not subject_rotation_queue:
+            return day_sessions
+        
         # Loop through available hours and schedule sessions
+        current_subject_index = 0
         for hour in available_hours:
             # If no more allocation left, we're done
             if all(remaining <= 0 for remaining in remaining_allocation.values()):
@@ -274,15 +290,35 @@ class StudyScheduler:
                 
             # Find a subject to schedule
             scheduled_subject = False
+            attempted_subjects = set()  # Keep track of subjects we've tried
             
-            # First try subjects that haven't reached max consecutive sessions
-            for subject_id, subject in subjects_by_priority:
+            # Start with the next subject in the rotation queue
+            while len(attempted_subjects) < len(subject_rotation_queue):
+                # Get the next subject from the rotation queue
+                if current_subject_index >= len(subject_rotation_queue):
+                    current_subject_index = 0
+                    
+                subject_id = subject_rotation_queue[current_subject_index]
+                current_subject_index += 1
+                
+                if subject_id in attempted_subjects:
+                    continue
+                    
+                attempted_subjects.add(subject_id)
+                
+                # Skip if no remaining allocation or max consecutive reached
                 if remaining_allocation[subject_id] <= 0:
                     continue
                 
                 # Skip subjects that have reached max consecutive sessions
                 if consecutive_sessions[subject_id] >= max_consecutive:
                     continue
+                
+                # Skip subjects that are already scheduled at this hour on multiple days
+                if subject_time_tracking and subject_id in subject_time_tracking:
+                    # If this subject has been scheduled at this hour too many times already
+                    if subject_time_tracking[subject_id].get(hour, 0) >= 2:  # Allow max 2 occurrences
+                        continue
                 
                 # Calculate session start and end times
                 start_time = current_dt
@@ -291,10 +327,10 @@ class StudyScheduler:
                 # Create session
                 session = {
                     'subject_id': subject_id,
-                    'subject_name': subject.name,
+                    'subject_name': subject_map[subject_id].name,
                     'start_time': start_time,
                     'end_time': end_time,
-                    'color': subject.color if hasattr(subject, 'color') else "#3498db"
+                    'color': subject_map[subject_id].color if hasattr(subject_map[subject_id], 'color') else "#3498db"
                 }
                 
                 # Add session to the daily schedule
@@ -312,6 +348,10 @@ class StudyScheduler:
                 hours_used = session_minutes / 60
                 remaining_allocation[subject_id] -= hours_used
                 consecutive_sessions[subject_id] += hours_used
+                
+                # Update time tracking if provided
+                if subject_time_tracking and subject_id in subject_time_tracking:
+                    subject_time_tracking[subject_id][hour] = subject_time_tracking[subject_id].get(hour, 0) + 1
                 
                 scheduled_subject = True
                 break
@@ -378,17 +418,48 @@ class StudyScheduler:
         # Keep track of total hours allocated per subject
         hours_allocated = {subject_id: 0 for subject_id in total_subject_allocation}
         
+        # For better distribution, we'll track subject allocations per day
+        # and try to ensure each subject is studied at least once every two days
+        days_since_last_studied = {subject_id: 0 for subject_id in total_subject_allocation}
+        
         # Loop through each day in the date range
         current_date = self.start_date
         while current_date.date() <= self.end_date.date():
+            # Increment days since last studied for tracking
+            for subject_id in total_subject_allocation:
+                days_since_last_studied[subject_id] += 1
+            
             # For each day, create a daily allocation that considers:
             # 1. How much has already been allocated per subject
             # 2. How much should be allocated per day
-            # 3. Maximum total hours across all subjects
+            # 3. Days since last studied (to ensure variety)
+            # 4. Maximum total hours across all subjects
             
             today_allocation = {}
+            
+            # First, prioritize subjects that haven't been studied in a while
+            # (if they still have hours to allocate)
+            overdue_subjects = sorted(
+                [(subject_id, days) for subject_id, days in days_since_last_studied.items()
+                 if days >= 2 and total_subject_allocation[subject_id] - hours_allocated[subject_id] > 0],
+                key=lambda x: x[1],  # Sort by days since last studied
+                reverse=True  # Highest first
+            )
+            
+            # Allocate hours to overdue subjects first
+            for subject_id, _ in overdue_subjects:
+                remaining_hours = total_subject_allocation[subject_id] - hours_allocated[subject_id]
+                if remaining_hours <= 0:
+                    today_allocation[subject_id] = 0
+                else:
+                    # Don't schedule more than daily allocation or remaining hours
+                    today_allocation[subject_id] = min(daily_allocation[subject_id], remaining_hours)
+            
+            # Then allocate to other subjects with remaining hours
             for subject_id, total_hours in total_subject_allocation.items():
-                # Don't schedule more hours than total allocation
+                if subject_id in today_allocation:
+                    continue  # Already allocated as an overdue subject
+                    
                 remaining_hours = total_hours - hours_allocated[subject_id]
                 if remaining_hours <= 0:
                     today_allocation[subject_id] = 0
@@ -400,12 +471,16 @@ class StudyScheduler:
             daily_sessions = self.build_daily_schedule(
                 current_date, 
                 today_allocation,
-                schedule
+                schedule,
+                subject_time_tracking
             )
             
-            # Update hours allocated for each subject
+            # Update hours allocated for each subject and tracking info
+            subjects_studied_today = set()
             for session in daily_sessions:
                 subject_id = session['subject_id']
+                subjects_studied_today.add(subject_id)
+                
                 # Calculate session duration in hours
                 duration_hours = (session['end_time'] - session['start_time']).total_seconds() / 3600
                 hours_allocated[subject_id] += duration_hours
@@ -413,6 +488,10 @@ class StudyScheduler:
                 # Update time tracking to reduce likelihood of same subject at same time
                 session_hour = session['start_time'].hour
                 subject_time_tracking[subject_id][session_hour] += 1
+            
+            # Reset days counter for subjects studied today
+            for subject_id in subjects_studied_today:
+                days_since_last_studied[subject_id] = 0
             
             # Add sessions to overall schedule
             schedule.extend(daily_sessions)
