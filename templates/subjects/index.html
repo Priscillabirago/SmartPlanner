@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}My Subjects - Ghana Smart Study Planner{% endblock %}
+{% block title %}My Subjects - Smart Study Planner{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -27,7 +27,7 @@
         {% for subject in subjects %}
         <div class="col-md-6 col-lg-4 mb-4">
             <div class="card h-100 shadow-sm">
-                <div class="card-header" style="background-color: {{ subject.color or '#3498db' }}; color: white;">
+                <div class="card-header subject-header" data-color="{{ subject.color or '#3498db' }}" style="color: white;">
                     <h5 class="card-title mb-0">{{ subject.name }}</h5>
                 </div>
                 <div class="card-body">
@@ -79,4 +79,19 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set subject header colors dynamically
+        const subjectHeaders = document.querySelectorAll('.subject-header[data-color]');
+        for (const header of subjectHeaders) {
+            const color = header.dataset('data-color');
+            if (color) {
+                header.style.backgroundColor = color;
+            }
+        }
+    });
+</script>
 {% endblock %} 

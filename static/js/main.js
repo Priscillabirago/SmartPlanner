@@ -1,26 +1,26 @@
 /**
- * Ghana Smart Study Planner - Main JavaScript
+ * Smart Study Planner - Main JavaScript
  */
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(function(tooltipTriggerEl) {
+    const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    for (const tooltipTriggerEl of tooltipTriggerList) {
         new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    }
 
     // Initialize popovers
-    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-    popoverTriggerList.forEach(function(popoverTriggerEl) {
+    const popoverTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    for (const popoverTriggerEl of popoverTriggerList) {
         new bootstrap.Popover(popoverTriggerEl);
-    });
+    }
 
     // Mark study session as completed via AJAX
     const completeSessionBtns = document.querySelectorAll('.complete-session-btn');
     if (completeSessionBtns.length > 0) {
-        completeSessionBtns.forEach(function(btn) {
+        for (const btn of completeSessionBtns) {
             btn.addEventListener('click', function() {
-                const sessionId = this.getAttribute('data-session-id');
+                const sessionId = this.dataset.sessionId;
                 
                 fetch(`/mark_completed/${sessionId}`, {
                     method: 'POST',
@@ -43,15 +43,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => console.error('Error:', error));
             });
-        });
+        }
     }
 
     // Mark task as completed via AJAX
     const completeTaskBtns = document.querySelectorAll('.complete-task-btn');
     if (completeTaskBtns.length > 0) {
-        completeTaskBtns.forEach(function(btn) {
+        for (const btn of completeTaskBtns) {
             btn.addEventListener('click', function() {
-                const taskId = this.getAttribute('data-task-id');
+                const taskId = this.dataset.taskId;
                 
                 fetch(`/subjects/task/complete/${taskId}`, {
                     method: 'POST',
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => console.error('Error:', error));
             });
-        });
+        }
     }
 
     // Initialize FullCalendar if the element exists
@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            events: window.calendarEvents || [], // Get events from the page
+            events: globalThis.calendarEvents || [], // Get events from the page
             eventTimeFormat: {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             eventClick: function(info) {
                 // Handle event click (redirect to session details)
-                window.location.href = `/scheduler/session/${info.event.id}`;
+                globalThis.location.href = `/scheduler/session/${info.event.id}`;
             },
             eventClassNames: function(arg) {
                 // Add class to completed events
@@ -118,12 +118,12 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeCharts() {
     // Subject distribution chart
     const subjectChartEl = document.getElementById('subjectDistributionChart');
-    if (subjectChartEl && window.subjectData) {
+    if (subjectChartEl && globalThis.subjectData) {
         const ctx = subjectChartEl.getContext('2d');
         
-        const labels = Object.keys(window.subjectData);
-        const data = labels.map(subject => window.subjectData[subject].hours);
-        const backgroundColor = labels.map(subject => window.subjectData[subject].color);
+        const labels = Object.keys(globalThis.subjectData);
+        const data = labels.map(subject => globalThis.subjectData[subject].hours);
+        const backgroundColor = labels.map(subject => globalThis.subjectData[subject].color);
         
         new Chart(ctx, {
             type: 'doughnut',
@@ -152,14 +152,14 @@ function initializeCharts() {
 
     // Completion rate chart
     const completionChartEl = document.getElementById('completionRateChart');
-    if (completionChartEl && typeof window.completionRate !== 'undefined') {
+    if (completionChartEl && globalThis.completionRate !== undefined) {
         const ctx = completionChartEl.getContext('2d');
         
         new Chart(ctx, {
             type: 'gauge',
             data: {
                 datasets: [{
-                    value: window.completionRate,
+                    value: globalThis.completionRate,
                     data: [25, 50, 75, 100],
                     backgroundColor: ['#f44336', '#ff9800', '#4caf50', '#2196f3'],
                     borderWidth: 0

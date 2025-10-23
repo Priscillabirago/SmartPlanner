@@ -4,9 +4,13 @@ from flask import url_for, flash, jsonify
 from flask_login import login_required, current_user
 
 from models.database import db, Subject, StudySession, Task
-from models.scheduler import GHANA_TZ  # Import Ghana timezone
 
 subjects = Blueprint('subjects', __name__, url_prefix='/subjects')
+
+INDEX_ROUTE = 'subjects.index'
+ADD_ROUTE = 'subjects.add'
+EDIT_ROUTE = 'subjects.edit'
+TASKS_ROUTE = 'subjects.tasks'
 
 
 @subjects.route('/')
@@ -36,28 +40,26 @@ def add():
         exam_date = None
         if exam_date_str:
             try:
-                # Create timezone-aware datetime
-                naive_date = datetime.strptime(exam_date_str, '%Y-%m-%d')
+                # Create datetime
+                exam_date = datetime.strptime(exam_date_str, '%Y-%m-%d')
                 # Set time to end of day (23:59:59)
-                naive_date = naive_date.replace(hour=23, minute=59, second=59)
-                # Add timezone info
-                exam_date = GHANA_TZ.localize(naive_date)
+                exam_date = exam_date.replace(hour=23, minute=59, second=59)
             except ValueError:
                 flash('Invalid exam date format. Please use YYYY-MM-DD.', 'danger')
-                return redirect(url_for('subjects.add'))
+                return redirect(url_for(ADD_ROUTE))
         
         # Validate required fields
         if not name:
             flash('Subject name is required.', 'danger')
-            return redirect(url_for('subjects.add'))
+            return redirect(url_for(ADD_ROUTE))
         
         if not workload or workload < 1:
             flash('Workload must be at least 1 hour per week.', 'danger')
-            return redirect(url_for('subjects.add'))
+            return redirect(url_for(ADD_ROUTE))
         
         if not priority or priority < 1 or priority > 5:
             flash('Priority must be between 1 and 5.', 'danger')
-            return redirect(url_for('subjects.add'))
+            return redirect(url_for(ADD_ROUTE))
         
         # Create new subject
         new_subject = Subject(
@@ -75,9 +77,31 @@ def add():
         db.session.commit()
         
         flash(f'Subject "{name}" added successfully!', 'success')
-        return redirect(url_for('subjects.index'))
+        return redirect(url_for(INDEX_ROUTE))
     
     return render_template('subjects/add.html')
+
+
+def _validate_subject(subject):
+    """Validate subject fields and return error message if invalid."""
+    if not subject.name:
+        return 'Subject name is required.'
+    if not subject.workload or subject.workload < 1:
+        return 'Workload must be at least 1 hour per week.'
+    if not subject.priority or subject.priority < 1 or subject.priority > 5:
+        return 'Priority must be between 1 and 5.'
+    return None
+
+
+def _parse_exam_date(exam_date_str):
+    """Parse exam date string and return datetime or None."""
+    if not exam_date_str:
+        return None
+    try:
+        exam_date = datetime.strptime(exam_date_str, '%Y-%m-%d')
+        return exam_date.replace(hour=23, minute=59, second=59)
+    except ValueError:
+        return False  # False indicates parsing error
 
 
 @subjects.route('/edit/<int:subject_id>', methods=['GET', 'POST'])
@@ -86,10 +110,9 @@ def edit(subject_id):
     """Edit an existing subject."""
     subject = Subject.query.get_or_404(subject_id)
     
-    # Security check: ensure the subject belongs to the current user
     if subject.user_id != current_user.id:
         flash('You do not have permission to edit this subject.', 'danger')
-        return redirect(url_for('subjects.index'))
+        return redirect(url_for(INDEX_ROUTE))
     
     if request.method == 'POST':
         subject.name = request.form.get('name')
@@ -99,39 +122,20 @@ def edit(subject_id):
         subject.color = request.form.get('color', '#3498db')
         subject.notes = request.form.get('notes', '')
         
-        # Parse exam date if provided
-        exam_date_str = request.form.get('exam_date')
-        if exam_date_str:
-            try:
-                # Create timezone-aware datetime
-                naive_date = datetime.strptime(exam_date_str, '%Y-%m-%d')
-                # Set time to end of day (23:59:59)
-                naive_date = naive_date.replace(hour=23, minute=59, second=59)
-                # Add timezone info
-                subject.exam_date = GHANA_TZ.localize(naive_date)
-            except ValueError:
-                flash('Invalid exam date format. Please use YYYY-MM-DD.', 'danger')
-                return redirect(url_for('subjects.edit', subject_id=subject.id))
-        else:
-            subject.exam_date = None
+        exam_date = _parse_exam_date(request.form.get('exam_date'))
+        if exam_date is False:
+            flash('Invalid exam date format. Please use YYYY-MM-DD.', 'danger')
+            return redirect(url_for(EDIT_ROUTE, subject_id=subject.id))
+        subject.exam_date = exam_date
         
-        # Validate required fields
-        if not subject.name:
-            flash('Subject name is required.', 'danger')
-            return redirect(url_for('subjects.edit', subject_id=subject.id))
-        
-        if not subject.workload or subject.workload < 1:
-            flash('Workload must be at least 1 hour per week.', 'danger')
-            return redirect(url_for('subjects.edit', subject_id=subject.id))
-        
-        if not subject.priority or subject.priority < 1 or subject.priority > 5:
-            flash('Priority must be between 1 and 5.', 'danger')
-            return redirect(url_for('subjects.edit', subject_id=subject.id))
+        error = _validate_subject(subject)
+        if error:
+            flash(error, 'danger')
+            return redirect(url_for(EDIT_ROUTE, subject_id=subject.id))
         
         db.session.commit()
-        
         flash(f'Subject "{subject.name}" updated successfully!', 'success')
-        return redirect(url_for('subjects.index'))
+        return redirect(url_for(INDEX_ROUTE))
     
     return render_template('subjects/edit.html', subject=subject)
 
@@ -145,7 +149,7 @@ def delete(subject_id):
     # Security check: ensure the subject belongs to the current user
     if subject.user_id != current_user.id:
         flash('You do not have permission to delete this subject.', 'danger')
-        return redirect(url_for('subjects.index'))
+        return redirect(url_for(INDEX_ROUTE))
     
     subject_name = subject.name
     
@@ -160,7 +164,7 @@ def delete(subject_id):
     db.session.commit()
     
     flash(f'Subject "{subject_name}" deleted successfully!', 'success')
-    return redirect(url_for('subjects.index'))
+    return redirect(url_for(INDEX_ROUTE))
 
 
 @subjects.route('/tasks/<int:subject_id>', methods=['GET', 'POST'])
@@ -178,7 +182,7 @@ def tasks(subject_id):
         title = request.form.get('title')
         if not title:
             flash('Task title is required', 'danger')
-            return redirect(url_for('subjects.tasks', subject_id=subject_id))
+            return redirect(url_for(TASKS_ROUTE, subject_id=subject_id))
         
         # Get other form fields
         description = request.form.get('description', '')
@@ -190,10 +194,8 @@ def tasks(subject_id):
         deadline_str = request.form.get('deadline')
         if deadline_str:
             try:
-                # Create a naive datetime from the string
-                naive_deadline = datetime.strptime(deadline_str, '%Y-%m-%d')
-                # Make it timezone aware with Ghana timezone
-                deadline = GHANA_TZ.localize(naive_deadline)
+                # Create a datetime from the string
+                deadline = datetime.strptime(deadline_str, '%Y-%m-%d')
             except ValueError:
                 flash('Invalid deadline format', 'danger')
         
@@ -212,14 +214,14 @@ def tasks(subject_id):
         db.session.commit()
         
         flash('Task added successfully', 'success')
-        return redirect(url_for('subjects.tasks', subject_id=subject_id))
+        return redirect(url_for(TASKS_ROUTE, subject_id=subject_id))
     
     # Get all tasks for this subject
     tasks = Task.query.filter_by(subject_id=subject_id).order_by(
         Task.completed, Task.deadline, Task.priority.desc()).all()
     
     # Get current time for deadline comparison
-    now = datetime.now(GHANA_TZ)
+    now = datetime.now()
     
     return render_template('subjects/tasks.html', subject=subject, tasks=tasks, now=now)
 
@@ -255,4 +257,4 @@ def delete_task(task_id):
     db.session.commit()
     
     flash('Task deleted successfully!', 'success')
-    return redirect(url_for('subjects.tasks', subject_id=subject_id)) 
+    return redirect(url_for(TASKS_ROUTE, subject_id=subject_id)) 

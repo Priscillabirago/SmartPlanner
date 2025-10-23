@@ -6,12 +6,15 @@ from models.database import db, User, StudyPreference
 
 auth = Blueprint('auth', __name__)
 
+DASHBOARD_ROUTE = 'main.dashboard'
+LOGIN_ROUTE = 'auth.login'
+REGISTER_ROUTE = 'auth.register'
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
     """Handle user login."""
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for(DASHBOARD_ROUTE))
     
     if request.method == 'POST':
         email = request.form.get('email')
@@ -23,7 +26,7 @@ def login():
         # Check if user exists and password is correct
         if not user or not user.check_password(password):
             flash('Please check your login details and try again.', 'danger')
-            return redirect(url_for('auth.login'))
+            return redirect(url_for(LOGIN_ROUTE))
         
         # If validation passes, log in the user
         login_user(user, remember=remember)
@@ -32,7 +35,7 @@ def login():
         next_page = request.args.get('next')
         if next_page:
             return redirect(next_page)
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for(DASHBOARD_ROUTE))
     
     return render_template('auth/login.html')
 
@@ -41,7 +44,7 @@ def login():
 def register():
     """Handle user registration."""
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for(DASHBOARD_ROUTE))
     
     if request.method == 'POST':
         # Get form data
@@ -57,19 +60,19 @@ def register():
         # Validate passwords match
         if password != confirm_password:
             flash('Passwords do not match!', 'danger')
-            return redirect(url_for('auth.register'))
+            return redirect(url_for(REGISTER_ROUTE))
         
         # Check if email already exists
         user = User.query.filter_by(email=email).first()
         if user:
             flash('Email address already exists!', 'danger')
-            return redirect(url_for('auth.register'))
+            return redirect(url_for(REGISTER_ROUTE))
         
         # Check if username already exists
         user = User.query.filter_by(username=username).first()
         if user:
             flash('Username already exists!', 'danger')
-            return redirect(url_for('auth.register'))
+            return redirect(url_for(REGISTER_ROUTE))
         
         # Create new user
         new_user = User(
@@ -94,7 +97,7 @@ def register():
         db.session.commit()
         
         flash('Registration successful! Please log in.', 'success')
-        return redirect(url_for('auth.login'))
+        return redirect(url_for(LOGIN_ROUTE))
     
     return render_template('auth/register.html')
 
@@ -105,7 +108,7 @@ def logout():
     """Handle user logout."""
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('auth.login'))
+    return redirect(url_for(LOGIN_ROUTE))
 
 
 @auth.route('/profile', methods=['GET', 'POST'])

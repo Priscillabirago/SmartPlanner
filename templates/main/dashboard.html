@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Ghana Smart Study Planner{% endblock %}
+{% block title %}Dashboard - Smart Study Planner{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -52,7 +52,6 @@
     
     .progress-ring-circle {
         stroke-dasharray: 301.59;
-        stroke-dashoffset: calc(301.59 - (301.59 * {{ completion_rate }}) / 100);
         stroke-linecap: round;
         transition: stroke-dashoffset 0.5s ease;
     }
@@ -217,7 +216,7 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <div class="mb-1">
-                                        <span class="subject-pill" style="background-color: {{ session.subject.color if session.subject.color else '#3498db' }}">
+                                        <span class="subject-pill" data-color="{{ session.subject.color if session.subject.color else '#3498db' }}">
                                             {{ session.subject.name }}
                                         </span>
                                         <small class="text-muted">{{ session.start_time.strftime('%A, %B %d') }}</small>
@@ -248,7 +247,7 @@
                     <h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>Completion Rate</h5>
                 </div>
                 <div class="card-body text-center">
-                    <div class="progress-circle mb-3">
+                    <div class="progress-circle mb-3" data-completion-rate="{{ completion_rate }}">
                         <svg class="progress-ring" width="120" height="120">
                             <circle
                                 class="progress-ring-circle-bg"
@@ -329,9 +328,28 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Set progress circle stroke-dashoffset dynamically
+        const progressContainer = document.querySelector('.progress-circle');
+        const completionRate = Number.parseFloat(progressContainer.dataset('data-completion-rate'));
+        const progressCircle = document.querySelector('.progress-ring-circle');
+        if (progressCircle && completionRate) {
+            const circumference = 301.59;
+            const offset = circumference - (circumference * completionRate) / 100;
+            progressCircle.style.strokeDashoffset = offset;
+        }
+        
+        // Set subject pill colors dynamically
+        const subjectPills = document.querySelectorAll('.subject-pill[data-color]');
+        for (const pill of subjectPills) {
+            const color = pill.dataset('data-color');
+            if (color) {
+                pill.style.backgroundColor = color;
+            }
+        }
+        
         // Mark study session as completed via AJAX
         const completeButtons = document.querySelectorAll('.complete-session-btn');
-        completeButtons.forEach(function(button) {
+        for (const button of completeButtons) {
             button.addEventListener('click', function() {
                 const sessionId = this.getAttribute('data-session-id');
                 const button = this;
@@ -364,7 +382,7 @@
                 })
                 .catch(error => console.error('Error:', error));
             });
-        });
+        }
     });
 </script>
 {% endblock %} 

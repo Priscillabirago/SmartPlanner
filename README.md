@@ -1,18 +1,16 @@
-# Ghana Smart Study Planner
+#Smart Study Planner
 
-![Ghana Smart Study Planner Logo](/static/img/logo.png)
+![Smart Study Planner Logo](/static/img/logo.png)
 
-A powerful study scheduling tool designed specifically for Ghanaian students to optimize their study time and improve academic performance.
+A powerful study scheduling tool designed for high school and college students to optimize their study time and improve academic performance.
 
 ## Features
 
 - **Smart Schedule Generation**: Creates personalized study schedules based on subject priority, workload, difficulty, and upcoming exams
 - **Dynamic Scheduling Algorithm**: Adapts to each student's study habits, preferences, and academic goals
-- **User-Friendly Interface**: Modern, responsive web interface accessible on various devices
 - **Visual Analytics**: Track your study progress with intuitive charts and statistics
 - **Task Management**: Organize assignments and study goals for each subject
 - **Calendar Integration**: View your study schedule in a familiar calendar interface
-- **Ghana-Specific Design**: Tailored for the Ghanaian educational system and student needs
 
 ## Technology Stack
 

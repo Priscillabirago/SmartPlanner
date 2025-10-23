@@ -1,18 +1,19 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
-import pytz
 
-# Define Ghana timezone
-GHANA_TZ = pytz.timezone('Africa/Accra')
+# Constants
+CASCADE_DELETE = "all, delete-orphan"
+FK_USERS_ID = "users.id"
 
-# Create timezone-aware now function for defaults
-def ghana_time_now():
-    return datetime.now(GHANA_TZ)
+# Create timezone-aware now function for defaults (using UTC)
+def utc_now():
+    return datetime.now(timezone.utc)
 
 db = SQLAlchemy()
+
 
 class User(db.Model, UserMixin):
     """User model that represents students using the study planner."""
@@ -33,11 +34,11 @@ class User(db.Model, UserMixin):
         "night": False
     }))
     academic_goals = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=ghana_time_now)
+    created_at = db.Column(db.DateTime, default=utc_now)
     
     # Relationships
-    subjects = db.relationship('Subject', backref='user', lazy='dynamic', cascade="all, delete-orphan")
-    study_sessions = db.relationship('StudySession', backref='user', lazy='dynamic', cascade="all, delete-orphan")
+    subjects = db.relationship('Subject', backref='user', lazy='dynamic', cascade=CASCADE_DELETE)
+    study_sessions = db.relationship('StudySession', backref='user', lazy='dynamic', cascade=CASCADE_DELETE)
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -60,7 +61,7 @@ class Subject(db.Model):
     __tablename__ = 'subjects'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey(FK_USERS_ID), nullable=False)
     name = db.Column(db.String(64), nullable=False)
     workload = db.Column(db.Integer)  # Hours per week
     priority = db.Column(db.Integer)  # 1-5 scale
@@ -68,10 +69,10 @@ class Subject(db.Model):
     exam_date = db.Column(db.DateTime, nullable=True)
     color = db.Column(db.String(7), default="#3498db")  # Hex color code
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=ghana_time_now)
+    created_at = db.Column(db.DateTime, default=utc_now)
     
     # Relationships
-    study_sessions = db.relationship('StudySession', backref='subject', lazy='dynamic', cascade="all, delete-orphan")
+    study_sessions = db.relationship('StudySession', backref='subject', lazy='dynamic', cascade=CASCADE_DELETE)
     
     def __repr__(self):
         return f'<Subject {self.name}>'
@@ -82,7 +83,7 @@ class StudySession(db.Model):
     __tablename__ = 'study_sessions'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey(FK_USERS_ID), nullable=False)
     subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
@@ -90,7 +91,7 @@ class StudySession(db.Model):
     productivity_rating = db.Column(db.Integer, nullable=True)  # 1-5 scale
     notes = db.Column(db.Text)
     location = db.Column(db.String(128))
-    created_at = db.Column(db.DateTime, default=ghana_time_now)
+    created_at = db.Column(db.DateTime, default=utc_now)
     
     def duration_minutes(self):
         """Calculate session duration in minutes."""
@@ -107,7 +108,7 @@ class Task(db.Model):
     __tablename__ = 'tasks'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey(FK_USERS_ID), nullable=False)
     subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
     title = db.Column(db.String(128), nullable=False)
     description = db.Column(db.Text)
@@ -115,7 +116,7 @@ class Task(db.Model):
     estimated_time = db.Column(db.Integer)  # Minutes
     completed = db.Column(db.Boolean, default=False)
     priority = db.Column(db.Integer)  # 1-5 scale
-    created_at = db.Column(db.DateTime, default=ghana_time_now)
+    created_at = db.Column(db.DateTime, default=utc_now)
     
     # Relationships
     subject = db.relationship('Subject', backref='tasks')
@@ -129,7 +130,7 @@ class StudyPreference(db.Model):
     __tablename__ = 'study_preferences'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey(FK_USERS_ID), unique=True, nullable=False)
     max_consecutive_hours = db.Column(db.Integer, default=2)
     break_duration = db.Column(db.Integer, default=15)  # Minutes
     preferred_session_length = db.Column(db.Integer, default=60)  # Minutes

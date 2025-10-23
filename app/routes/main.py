@@ -3,7 +3,6 @@ from flask import Blueprint, render_template, redirect, url_for, jsonify
 from flask_login import login_required, current_user
 
 from models.database import db, Subject, StudySession
-from models.scheduler import GHANA_TZ  # Import Ghana timezone
 
 main = Blueprint('main', __name__)
 
@@ -24,7 +23,7 @@ def dashboard():
     subjects = Subject.query.filter_by(user_id=current_user.id).all()
     
     # Get upcoming study sessions (next 3 days)
-    now = datetime.now(GHANA_TZ)
+    now = datetime.now()
     three_days_later = now + timedelta(days=3)
     
     upcoming_sessions = StudySession.query.filter(
