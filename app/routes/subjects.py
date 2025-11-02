@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, abort
 from flask import url_for, flash, jsonify
 from flask_login import login_required, current_user
@@ -221,9 +221,43 @@ def tasks(subject_id):
         Task.completed, Task.deadline, Task.priority.desc()).all()
     
     # Get current time for deadline comparison
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     
     return render_template('subjects/tasks.html', subject=subject, tasks=tasks, now=now)
+
+
+@subjects.route('/task/edit/<int:task_id>', methods=['GET', 'POST'])
+@login_required
+def edit_task(task_id):
+    """Edit an existing task."""
+    task = Task.query.get_or_404(task_id)
+    
+    # Security check: ensure the task belongs to the current user
+    if task.user_id != current_user.id:
+        abort(403)
+    
+    if request.method == 'POST':
+        task.title = request.form.get('title')
+        task.description = request.form.get('description', '')
+        task.priority = int(request.form.get('priority', 3))
+        task.estimated_time = int(request.form.get('estimated_time', 30))
+        
+        # Parse deadline if provided
+        deadline_str = request.form.get('deadline')
+        if deadline_str:
+            try:
+                task.deadline = datetime.strptime(deadline_str, '%Y-%m-%d')
+            except ValueError:
+                flash('Invalid deadline format', 'danger')
+                return redirect(url_for('subjects.edit_task', task_id=task_id))
+        else:
+            task.deadline = None
+        
+        db.session.commit()
+        flash('Task updated successfully!', 'success')
+        return redirect(url_for(TASKS_ROUTE, subject_id=task.subject_id))
+    
+    return render_template('subjects/edit_task.html', task=task)
 
 
 @subjects.route('/task/complete/<int:task_id>', methods=['POST'])

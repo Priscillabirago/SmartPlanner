@@ -42,6 +42,20 @@
                         </div>
                         
                         <div class="mb-3">
+                            <label for="timezone" class="form-label">
+                                <i class="fas fa-clock me-1"></i>Timezone
+                            </label>
+                            <select class="form-select" id="timezone" name="timezone">
+                                {% for tz_name, tz_display in timezones %}
+                                    <option value="{{ tz_name }}" {% if user.timezone == tz_name %}selected{% endif %}>
+                                        {{ tz_display }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Your local timezone for correct schedule times</small>
+                        </div>
+                        
+                        <div class="mb-3">
                             <label for="study_hours_per_week" class="form-label">Study Hours Per Week</label>
                             <input type="number" class="form-control" id="study_hours_per_week" name="study_hours_per_week" value="{{ user.study_hours_per_week or 10 }}" min="1" max="100">
                         </div>

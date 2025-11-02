@@ -19,29 +19,47 @@ document.addEventListener('DOMContentLoaded', function() {
     const completeSessionBtns = document.querySelectorAll('.complete-session-btn');
     if (completeSessionBtns.length > 0) {
         for (const btn of completeSessionBtns) {
-            btn.addEventListener('click', function() {
-                const sessionId = this.dataset.sessionId;
-                
+            btn.addEventListener('click', function(event) {
+                const button = event.currentTarget;
+                const sessionId = button.dataset.sessionId;
+                const originalHtml = button.innerHTML;
+
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Marking...';
+
                 fetch(`/mark_completed/${sessionId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
-                    }
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({})
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Request failed with status ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         // Update UI to show completion
                         const sessionEl = document.querySelector(`.study-session[data-session-id="${sessionId}"]`);
                         if (sessionEl) {
                             sessionEl.classList.add('completed');
-                            this.disabled = true;
-                            this.innerHTML = '<i class="fas fa-check"></i> Completed';
                         }
+                        button.innerHTML = '<i class="fas fa-check"></i> Completed';
+                    } else {
+                        throw new Error(data.message || 'Unknown error');
                     }
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Error completing session:', error);
+                    button.disabled = false;
+                    button.innerHTML = originalHtml;
+                    alert('Unable to mark session as completed. Please try again or open the session details page.');
+                });
             });
         }
     }
@@ -50,29 +68,47 @@ document.addEventListener('DOMContentLoaded', function() {
     const completeTaskBtns = document.querySelectorAll('.complete-task-btn');
     if (completeTaskBtns.length > 0) {
         for (const btn of completeTaskBtns) {
-            btn.addEventListener('click', function() {
-                const taskId = this.dataset.taskId;
+            btn.addEventListener('click', function(event) {
+                const button = event.currentTarget;
+                const taskId = button.dataset.taskId;
+                const originalHtml = button.innerHTML;
+
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Marking...';
                 
                 fetch(`/subjects/task/complete/${taskId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
-                    }
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({})
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Request failed with status ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         // Update UI to show completion
                         const taskEl = document.querySelector(`.task-item[data-task-id="${taskId}"]`);
                         if (taskEl) {
                             taskEl.classList.add('completed');
-                            this.disabled = true;
-                            this.innerHTML = '<i class="fas fa-check"></i> Completed';
                         }
+                        button.innerHTML = '<i class="fas fa-check"></i> Completed';
+                    } else {
+                        throw new Error(data.message || 'Unknown error');
                     }
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Error completing task:', error);
+                    button.disabled = false;
+                    button.innerHTML = originalHtml;
+                    alert('Unable to mark task as completed. Please try again or update it manually.');
+                });
             });
         }
     }

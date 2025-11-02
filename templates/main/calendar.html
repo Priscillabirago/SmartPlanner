@@ -215,34 +215,6 @@
                 var subject = info.event.title;
                 var color = info.event.backgroundColor;
                 
-                // Check if this is a duplicate event (same title, time, date)
-                const sameEvents = calendar.getEvents().filter(e => {
-                    if (e.id === info.event.id) return false; // Skip self
-                    if (e.title !== info.event.title) return false;
-                    
-                    // Check if times match
-                    const sameStart = e.start && info.event.start && 
-                                     e.start.getTime() === info.event.start.getTime();
-                    const sameEnd = e.end && info.event.end && 
-                                   e.end.getTime() === info.event.end.getTime();
-                    
-                    return sameStart && sameEnd;
-                });
-                
-                // If this is a duplicate, we may need to handle it
-                if (sameEvents.length > 0) {
-                    // Option 1: Add counter to title
-                    // info.event.setProp('title', info.event.title + ' (' + (sameEvents.length + 1) + ')');
-                    
-                    // Option 2: For study sessions, you might want to remove duplicates
-                    // if they're truly duplicates and not just same subject at same time
-                    if (info.event.start && sameEvents[0].start && 
-                        info.event.start.getTime() === sameEvents[0].start.getTime()) {
-                        // This is likely an actual duplicate - remove it
-                        info.event.remove();
-                    }
-                }
-                
                 if (!subjectMap[subject]) {
                     subjectMap[subject] = color;
                 }

@@ -64,6 +64,33 @@
         font-size: 1.5rem;
         font-weight: bold;
     }
+
+    .adherence-progress {
+        width: 100%;
+        height: 8px;
+        border-radius: 999px;
+        overflow: hidden;
+        -webkit-appearance: none;
+        appearance: none;
+        background-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .adherence-progress::-webkit-progress-bar {
+        background-color: rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+    }
+
+    .adherence-progress::-webkit-progress-value {
+        background-color: #ffffff;
+        border-radius: 999px;
+        transition: width 0.5s ease;
+    }
+
+    .adherence-progress::-moz-progress-bar {
+        background-color: #ffffff;
+        border-radius: 999px;
+        transition: width 0.5s ease;
+    }
 </style>
 {% endblock %}
 
@@ -155,6 +182,96 @@
             </div>
         </div>
     </div>
+    
+    <!-- Metrics Cards: Planned vs Actual & Quality -->
+    <div class="row mb-4">
+        <!-- Planned vs Actual This Week -->
+        <div class="col-md-6">
+            <div class="card stat-card bg-gradient-primary text-white h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-chart-line me-2"></i>Plan Adherence - This Week
+                    </h5>
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1 text-white-50">Planned</p>
+                            <h3 class="mb-0">{{ study_stats.formatted.planned }}</h3>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1 text-white-50">Actual</p>
+                            <h3 class="mb-0">{{ study_stats.formatted.actual }}</h3>
+                        </div>
+                    </div>
+                    <hr class="my-3 bg-white opacity-25">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="mb-0">Adherence Rate</p>
+                            <small class="text-white-50">{{ study_stats.this_week.completed_sessions }} / {{ study_stats.this_week.planned_sessions }} sessions completed</small>
+                        </div>
+                        <h2 class="mb-0">{{ study_stats.formatted.adherence }}</h2>
+                    </div>
+                    <progress class="adherence-progress mt-2"
+                              max="100"
+                              value="0"
+                              data-adherence-rate="{{ study_stats.this_week.adherence_rate or 0 }}"
+                              aria-label="Plan adherence rate">
+                    </progress>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Average Quality Last 7 Days -->
+        <div class="col-md-6">
+            <div class="card stat-card bg-gradient-success text-white h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-star me-2"></i>Study Quality - Last 7 Days
+                    </h5>
+                    <div class="text-center mb-3">
+                        <h1 class="display-3 mb-0">
+                            {% if study_stats.quality.average_rating > 0 %}
+                                {{ study_stats.quality.average_rating }}
+                            {% else %}
+                                --
+                            {% endif %}
+                        </h1>
+                        <div class="mb-2">
+                            {% if study_stats.quality.average_rating > 0 %}
+                                {% set rating = study_stats.quality.average_rating|round|int %}
+                                {% for i in range(rating) %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% endfor %}
+                                {% for i in range(5 - rating) %}
+                                    <i class="far fa-star text-white-50"></i>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-white-50">No ratings yet</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <hr class="my-3 bg-white opacity-25">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50">Based on {{ study_stats.quality.rated_sessions }} sessions</small>
+                        </div>
+                        {% if study_stats.quality.trend == 'up' %}
+                            <span class="badge bg-white text-success">
+                                <i class="fas fa-arrow-up"></i> +{{ study_stats.quality.trend_value }}
+                            </span>
+                        {% elif study_stats.quality.trend == 'down' %}
+                            <span class="badge bg-white text-danger">
+                                <i class="fas fa-arrow-down"></i> {{ study_stats.quality.trend_value }}
+                            </span>
+                        {% elif study_stats.quality.trend == 'stable' %}
+                            <span class="badge bg-white text-secondary">
+                                <i class="fas fa-minus"></i> Stable
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="row">
         <!-- Today's Schedule -->
@@ -169,13 +286,46 @@
                         <div class="study-session p-3 mb-3 rounded border {% if session.completed %}completed{% endif %}" data-session-id="{{ session.id }}">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h5 class="mb-1">{{ session.subject.name }}</h5>
+                                    <h5 class="mb-1">
+                                        {{ session.subject.name }}
+                                        {% if session.session_type %}
+                                            {% if session.session_type.value == 'assignment' %}
+                                                <span class="badge bg-warning text-dark ms-1">📝 Assignment</span>
+                                            {% elif session.session_type.value == 'practice' %}
+                                                <span class="badge bg-success ms-1">✏️ Practice</span>
+                                            {% elif session.session_type.value == 'review' %}
+                                                <span class="badge bg-info ms-1">🔄 Review</span>
+                                            {% elif session.session_type.value == 'learn' %}
+                                                <span class="badge bg-primary ms-1">📚 Learn</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </h5>
                                     <p class="text-muted mb-0">
                                         <i class="fas fa-clock me-1"></i>
-                                        {{ session.start_time.strftime('%I:%M %p') }} - {{ session.end_time.strftime('%I:%M %p') }}
+                                        {{ session.start_time|user_time('%I:%M %p') }} - {{ session.end_time|user_time('%I:%M %p') }}
                                         <span class="ms-2 text-muted">
                                             <i class="fas fa-hourglass-half me-1"></i>{{ session.duration_minutes() }} minutes
                                         </span>
+                                    </p>
+                                    <p class="mb-0 mt-1">
+                                        {% if session.task %}
+                                        <small class="text-primary">
+                                            <i class="fas fa-tasks me-1"></i>
+                                            <strong>{{ session.task.title }}</strong>
+                                            {% if session.task.deadline %}
+                                                {% if session.task.deadline.date() == session.start_time.date() %}
+                                                    <span class="badge badge-sm bg-danger ms-1">Due TODAY!</span>
+                                                {% else %}
+                                                    <span class="text-muted">(Due: {{ session.task.deadline|user_time('%b %d') }})</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </small>
+                                        {% else %}
+                                        <small class="text-muted">
+                                            <i class="fas fa-book me-1"></i>
+                                            General {{ session.subject.name }} study
+                                        </small>
+                                        {% endif %}
                                     </p>
                                 </div>
                                 <div>
@@ -214,16 +364,36 @@
                         {% for session in upcoming_sessions %}
                         <div class="study-session p-3 mb-3 rounded border">
                             <div class="d-flex justify-content-between align-items-center">
-                                <div>
+                                <div class="flex-grow-1">
                                     <div class="mb-1">
                                         <span class="subject-pill" data-color="{{ session.subject.color if session.subject.color else '#3498db' }}">
                                             {{ session.subject.name }}
                                         </span>
-                                        <small class="text-muted">{{ session.start_time.strftime('%A, %B %d') }}</small>
+                                        {% if session.session_type %}
+                                            {% if session.session_type.value == 'assignment' %}
+                                                <span class="badge bg-warning text-dark">📝</span>
+                                            {% elif session.session_type.value == 'practice' %}
+                                                <span class="badge bg-success">✏️</span>
+                                            {% elif session.session_type.value == 'review' %}
+                                                <span class="badge bg-info">🔄</span>
+                                            {% endif %}
+                                        {% endif %}
+                                        <small class="text-muted">{{ session.start_time|user_time('%A, %B %d') }}</small>
                                     </div>
                                     <p class="text-muted mb-0">
                                         <i class="fas fa-clock me-1"></i>
-                                        {{ session.start_time.strftime('%I:%M %p') }} - {{ session.end_time.strftime('%I:%M %p') }}
+                                        {{ session.start_time|user_time('%I:%M %p') }} - {{ session.end_time|user_time('%I:%M %p') }}
+                                    </p>
+                                    <p class="mb-0 mt-1">
+                                        {% if session.task %}
+                                        <small class="text-primary">
+                                            <i class="fas fa-tasks me-1"></i>{{ session.task.title }}
+                                        </small>
+                                        {% else %}
+                                        <small class="text-muted">
+                                            <i class="fas fa-book me-1"></i>General {{ session.subject.name }} study
+                                        </small>
+                                        {% endif %}
                                     </p>
                                 </div>
                             </div>
@@ -302,7 +472,7 @@
                                     {% if subject.exam_date %}
                                     <span class="badge bg-danger">
                                         <i class="fas fa-calendar-alt me-1"></i>
-                                        {{ subject.exam_date.strftime('%b %d') }}
+                                        {{ subject.exam_date|user_time('%b %d') }}
                                     </span>
                                     {% endif %}
                                 </div>
@@ -330,59 +500,38 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Set progress circle stroke-dashoffset dynamically
         const progressContainer = document.querySelector('.progress-circle');
-        const completionRate = Number.parseFloat(progressContainer.dataset('data-completion-rate'));
-        const progressCircle = document.querySelector('.progress-ring-circle');
-        if (progressCircle && completionRate) {
-            const circumference = 301.59;
-            const offset = circumference - (circumference * completionRate) / 100;
-            progressCircle.style.strokeDashoffset = offset;
+        if (progressContainer) {
+            const completionRateAttr = progressContainer.dataset.completionRate;
+            const completionRate = Number.parseFloat(completionRateAttr);
+            const progressCircle = progressContainer.querySelector('.progress-ring-circle');
+            if (progressCircle && Number.isFinite(completionRate)) {
+                const circumference = 301.59;
+                const offset = circumference - (circumference * completionRate) / 100;
+                progressCircle.style.strokeDashoffset = offset;
+            }
+        }
+
+        const adherenceProgress = document.querySelector('progress[data-adherence-rate]');
+        if (adherenceProgress) {
+            const adherenceRateAttr = adherenceProgress.dataset.adherenceRate;
+            const adherenceRate = Number.parseFloat(adherenceRateAttr);
+            if (Number.isFinite(adherenceRate)) {
+                adherenceProgress.value = adherenceRate;
+            } else {
+                adherenceProgress.value = 0;
+            }
         }
         
         // Set subject pill colors dynamically
         const subjectPills = document.querySelectorAll('.subject-pill[data-color]');
         for (const pill of subjectPills) {
-            const color = pill.dataset('data-color');
+            const color = pill.dataset.color;
             if (color) {
                 pill.style.backgroundColor = color;
             }
         }
         
-        // Mark study session as completed via AJAX
-        const completeButtons = document.querySelectorAll('.complete-session-btn');
-        for (const button of completeButtons) {
-            button.addEventListener('click', function() {
-                const sessionId = this.getAttribute('data-session-id');
-                const button = this;
-                
-                // Make API call to mark session as completed
-                fetch(`/mark_completed/${sessionId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Update the UI
-                        const sessionElement = document.querySelector(`.study-session[data-session-id="${sessionId}"]`);
-                        sessionElement.classList.add('completed');
-                        
-                        // Replace button with completed badge
-                        button.outerHTML = '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Completed</span>';
-                        
-                        // Update the stats (optional, could also reload page)
-                        const completedCountElement = document.querySelector('.bg-info h2');
-                        if (completedCountElement) {
-                            const currentCount = parseInt(completedCountElement.textContent);
-                            completedCountElement.textContent = currentCount + 1;
-                        }
-                    }
-                })
-                .catch(error => console.error('Error:', error));
-            });
-        }
+        // Session completion is handled by main.js globally
     });
 </script>
 {% endblock %} 

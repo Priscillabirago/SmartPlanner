@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import Blueprint, render_template, request, redirect, url_for
-from flask import flash, jsonify
+from flask import flash, jsonify, session
 from flask_login import login_required, current_user
 
-from models.database import db, Subject, StudySession
+from models.database import db, Subject, StudySession, SessionStatus, SessionType, Task
 from models.scheduler import StudyScheduler
+from utils.timezone_utils import localize_to_utc, utc_to_local
 
 scheduler = Blueprint('scheduler', __name__, url_prefix='/scheduler')
 
@@ -18,28 +19,35 @@ def index():
     subjects = Subject.query.filter_by(user_id=current_user.id).all()
     
     # Get current schedule
-    now = datetime.now()
-    one_week_ahead = now + timedelta(days=7)
+    now_utc = datetime.now(timezone.utc)
+    now_local = utc_to_local(now_utc, current_user.timezone)
+    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start_utc = localize_to_utc(today_start_local.replace(tzinfo=None), current_user.timezone)
+    one_week_ahead = today_start_utc + timedelta(days=7)
     
     current_schedule = StudySession.query.filter(
         StudySession.user_id == current_user.id,
-        StudySession.start_time >= now,
+        StudySession.start_time >= today_start_utc,
         StudySession.start_time <= one_week_ahead
     ).order_by(StudySession.start_time).all()
     
     # Group sessions by day for better display
     days = {}
-    for session in current_schedule:
-        day = session.start_time.strftime('%Y-%m-%d')
-        if day not in days:
-            days[day] = []
-        days[day].append(session)
+    for study_session in current_schedule:
+        local_start = utc_to_local(study_session.start_time, current_user.timezone)
+        day = local_start.strftime('%Y-%m-%d')
+        days.setdefault(day, []).append(study_session)
+    days = dict(sorted(days.items()))
     
+    from flask import session as flask_session
+    urgent_warnings = flask_session.pop('urgent_warnings', [])
+
     return render_template(
         'scheduler/index.html',
         subjects=subjects,
         schedule_days=days,
-        now=now,
+        now=now_local,
+        urgent_warnings=urgent_warnings,
         datetime=datetime,
         timedelta=timedelta
     )
@@ -57,22 +65,33 @@ def generate():
         return redirect(url_for('subjects.index'))
     
     # ALWAYS clear existing future sessions to prevent overlaps
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     
     # Get scheduling parameters
     start_date_str = request.form.get('start_date')
     days = request.form.get('days', type=int, default=7)
     
     # Parse start date if provided, otherwise use today
+    delete_from = None  # UTC datetime from which existing sessions will be cleared
     if start_date_str:
         try:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-            # Set time to current time
-            current_time = datetime.now()
-            start_date = start_date.replace(
-                hour=current_time.hour, 
-                minute=current_time.minute, 
-                second=current_time.second
+            # Parse as naive datetime (user's local date)
+            naive_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            # Get current time in user's timezone
+            current_time_utc = datetime.now(timezone.utc)
+            current_time_local = utc_to_local(current_time_utc, current_user.timezone)
+            # Combine date from input with current time
+            naive_dt = naive_date.replace(
+                hour=current_time_local.hour,
+                minute=current_time_local.minute,
+                second=current_time_local.second
+            )
+            # Convert to UTC for storage
+            start_date = localize_to_utc(naive_dt, current_user.timezone)
+            # Delete any existing sessions for that day starting at local midnight
+            delete_from = localize_to_utc(
+                naive_date.replace(hour=0, minute=0, second=0, microsecond=0),
+                current_user.timezone
             )
         except ValueError:
             flash('Invalid start date format. Using today instead.', 'warning')
@@ -80,14 +99,38 @@ def generate():
     else:
         start_date = now
     
+    if delete_from is None:
+        # Align deletion to the user's local midnight for the selected day
+        local_start = utc_to_local(start_date, current_user.timezone)
+        local_midnight = local_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        delete_from = localize_to_utc(local_midnight.replace(tzinfo=None), current_user.timezone)
+    
     # Calculate end date based on the provided days
     end_date = start_date + timedelta(days=days)
     
-    # Always delete ALL future sessions to prevent overlaps
+    # Check for urgent tasks and warn if hours are insufficient
+    temp_scheduler = StudyScheduler(
+        user=current_user,
+        subjects=subjects,
+        start_date=start_date,
+        end_date=end_date
+    )
+    
+    urgency_check = temp_scheduler.check_urgent_task_coverage()
+    if urgency_check['warnings']:
+        session['urgent_warnings'] = urgency_check['warnings']
+        for warning in urgency_check['warnings']:
+            flash(f"⚠️ {warning['message']} {warning['suggestion']}", 'warning')
+    
+    # Delete future sessions EXCEPT locked ones and completed ones
+    # Locked sessions represent manual edits the user wants to keep
+    # Completed sessions are historical records
     StudySession.query.filter(
         StudySession.user_id == current_user.id,
-        StudySession.start_time >= start_date
-    ).delete()
+        StudySession.start_time >= delete_from,
+        StudySession.locked == False,
+        StudySession.status.in_([SessionStatus.planned, SessionStatus.missed])
+    ).delete(synchronize_session=False)
     
     db.session.commit()
     
@@ -132,12 +175,27 @@ def session_details(session_id):
     
     if request.method == 'POST':
         # Update session details
-        completed = request.form.get('completed') == 'on'
+        status_str = request.form.get('status', 'planned')
+        session_type_str = request.form.get('session_type', 'learn')
+        task_id = request.form.get('task_id', type=int) or None
         productivity = request.form.get('productivity_rating', type=int)
         notes = request.form.get('notes', '')
         location = request.form.get('location', '')
         
-        session.completed = completed
+        # Update status enum
+        try:
+            session.status = SessionStatus[status_str]
+            session.completed = (session.status == SessionStatus.completed)  # Backward compatibility
+        except KeyError:
+            session.status = SessionStatus.planned
+        
+        # Update session type enum
+        try:
+            session.session_type = SessionType[session_type_str]
+        except KeyError:
+            session.session_type = SessionType.learn
+        
+        session.task_id = task_id
         session.productivity_rating = productivity
         session.notes = notes
         session.location = location
@@ -147,10 +205,18 @@ def session_details(session_id):
         flash('Session updated successfully!', 'success')
         return redirect(url_for('scheduler.session_details', session_id=session.id))
     
+    # Get all tasks for the subject to allow linking
+    tasks = Task.query.filter_by(
+        user_id=current_user.id, 
+        subject_id=session.subject_id,
+        completed=False
+    ).order_by(Task.deadline.asc()).all()
+    
     return render_template(
         'scheduler/session.html',
         session=session,
-        subject=subject
+        subject=subject,
+        tasks=tasks
     )
 
 
@@ -170,6 +236,32 @@ def delete_session(session_id):
     
     flash('Study session deleted successfully!', 'success')
     return redirect(url_for(INDEX_ROUTE))
+
+
+@scheduler.route('/toggle_lock/<int:session_id>', methods=['POST'])
+@login_required
+def toggle_lock(session_id):
+    """Toggle the locked status of a session.
+    
+    Locked sessions are preserved during schedule regeneration and treated as
+    busy times that the scheduler must work around.
+    """
+    session = StudySession.query.get_or_404(session_id)
+    
+    # Security check: ensure the session belongs to the current user
+    if session.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    # Toggle the locked status
+    session.locked = not session.locked
+    db.session.commit()
+    
+    action = 'locked' if session.locked else 'unlocked'
+    return jsonify({
+        'success': True, 
+        'locked': session.locked,
+        'message': f'Session {action} successfully'
+    })
 
 
 def _find_session_by_composite_id(session_id):

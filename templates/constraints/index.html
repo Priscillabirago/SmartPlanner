@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Schedule Constraints{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">
+        <i class="fas fa-calendar-times"></i> Manage Schedule Constraints
+    </h1>
+    
+    <p class="lead">
+        Block out times when you're busy (work, activities, appointments) and add your recurring class schedule.
+    </p>
+    
+    <!-- Add Busy Time Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0">
+                <i class="fas fa-clock"></i> Add Busy Time
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('constraints.add_constraint') }}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="constraint_title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="constraint_title" name="title" 
+                               placeholder="e.g., Work, Soccer practice" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="constraint_day" class="form-label">Day</label>
+                        <select class="form-select" id="constraint_day" name="day_of_week" required>
+                            {% for i in range(7) %}
+                            <option value="{{ i }}">{{ days[i] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="constraint_start" class="form-label">Start Time</label>
+                        <input type="time" class="form-control" id="constraint_start" name="start_time" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="constraint_end" class="form-label">End Time</label>
+                        <input type="time" class="form-control" id="constraint_end" name="end_time" required>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-label">Type</div>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="is_hard" 
+                                       id="hard_constraint" value="true" checked>
+                                <label class="form-check-label" for="hard_constraint">
+                                    Cannot study
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="is_hard" 
+                                       id="soft_constraint" value="false">
+                                <label class="form-check-label" for="soft_constraint">
+                                    Prefer not to
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-warning mt-3">
+                    <i class="fas fa-plus"></i> Add Busy Time
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Current Busy Times -->
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">Your Busy Times</h5>
+        </div>
+        <div class="card-body">
+            {% if user_constraints %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Day</th>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for constraint in user_constraints %}
+                        <tr>
+                            <td>{{ constraint.title }}</td>
+                            <td>{{ days[constraint.day_of_week] }}</td>
+                            <td>{{ constraint.start_time.strftime('%I:%M %p') }} - {{ constraint.end_time.strftime('%I:%M %p') }}</td>
+                            <td>
+                                {% if constraint.is_hard %}
+                                <span class="badge bg-danger">Cannot study</span>
+                                {% else %}
+                                <span class="badge bg-warning">Prefer not to</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ url_for('constraints.delete_constraint', constraint_id=constraint.id) }}" 
+                                      style="display: inline;" onsubmit="return confirm('Delete this busy time?');">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">No busy times added yet. Add times when you're unavailable to study.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Add Class Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-chalkboard-teacher"></i> Add Class
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('constraints.add_class') }}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="class_title" class="form-label">Class Name</label>
+                        <input type="text" class="form-control" id="class_title" name="title" 
+                               placeholder="e.g., Math 101" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="class_day" class="form-label">Day</label>
+                        <select class="form-select" id="class_day" name="day_of_week" required>
+                            {% for i in range(7) %}
+                            <option value="{{ i }}">{{ days[i] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="class_start" class="form-label">Start Time</label>
+                        <input type="time" class="form-control" id="class_start" name="start_time" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="class_end" class="form-label">End Time</label>
+                        <input type="time" class="form-control" id="class_end" name="end_time" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="class_location" class="form-label">Location</label>
+                        <input type="text" class="form-control" id="class_location" name="location" 
+                               placeholder="Room 203">
+                    </div>
+                    <div class="col-md-1">
+                        <label for="class_color" class="form-label">Color</label>
+                        <input type="color" class="form-control form-control-color" id="class_color" 
+                               name="color" value="#6c757d">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">
+                    <i class="fas fa-plus"></i> Add Class
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Current Classes -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Your Class Schedule</h5>
+        </div>
+        <div class="card-body">
+            {% if class_blocks %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Class</th>
+                            <th>Day</th>
+                            <th>Time</th>
+                            <th>Location</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class_block in class_blocks %}
+                        <tr>
+                            <td>
+                                <span class="badge" data-class-color="{{ class_block.color | default('#6c757d', true) }}">
+                                    {{ class_block.title }}
+                                </span>
+                            </td>
+                            <td>{{ days[class_block.day_of_week] }}</td>
+                            <td>{{ class_block.start_time.strftime('%I:%M %p') }} - {{ class_block.end_time.strftime('%I:%M %p') }}</td>
+                            <td>{{ class_block.location or '-' }}</td>
+                            <td>
+                                <form method="POST" action="{{ url_for('constraints.delete_class', class_id=class_block.id) }}" 
+                                      style="display: inline;" onsubmit="return confirm('Delete this class?');">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">No classes added yet. Add your recurring class schedule.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> 
+        <strong>Tip:</strong> After adding or removing constraints/classes, regenerate your study schedule to see the updated plan.
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const badges = document.querySelectorAll('[data-class-color]');
+    for (const badge of badges) {
+        const color = badge.dataset.classColor;
+        if (color) {
+            badge.style.backgroundColor = color;
+        }
+    }
+});
+</script>
+{% endblock %}
+

@@ -216,6 +216,12 @@
                                         </td>
                                         <td>{{ task.estimated_time }} min</td>
                                         <td>
+                                            <a href="{{ url_for('subjects.edit_task', task_id=task.id) }}" 
+                                               class="btn btn-sm btn-outline-primary me-1" 
+                                               data-bs-toggle="tooltip" 
+                                               title="Edit Task">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
                                             <button class="btn btn-sm btn-outline-danger delete-task-btn" 
                                                 data-task-id="{{ task.id }}" 
                                                 data-bs-toggle="tooltip" 

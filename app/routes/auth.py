@@ -3,6 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models.database import db, User, StudyPreference
+from utils.timezone_utils import get_common_timezones
 
 auth = Blueprint('auth', __name__)
 
@@ -122,6 +123,7 @@ def profile():
         user.name = request.form.get('name')
         user.school = request.form.get('school')
         user.grade_level = request.form.get('grade_level')
+        user.timezone = request.form.get('timezone', 'UTC')
         user.study_hours_per_week = request.form.get('study_hours_per_week', type=int)
         user.academic_goals = request.form.get('academic_goals')
         
@@ -159,4 +161,5 @@ def profile():
     except Exception:
         preferences = None
     
-    return render_template('auth/profile.html', user=user, preferences=preferences) 
+    timezones = get_common_timezones()
+    return render_template('auth/profile.html', user=user, preferences=preferences, timezones=timezones) 
